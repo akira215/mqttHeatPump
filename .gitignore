@@ -6,8 +6,12 @@ doc/
 json/
 managed_components/
 debug.log
+
+#config
 sdkconfig
 sdkconfig.old
+sdkconfig.secret
+
 .clangd
 .old
 #KiCad

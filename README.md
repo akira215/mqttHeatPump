@@ -13,4 +13,11 @@ Create a partition.csv for zigbee and configure menuconfig with custom partition
 
 ## Configuration
 
+Provide a `sdkconfig.secret` files for your Wifi credentials:
+
+```
+CONFIG_WIFI_SSID="MyWifi"
+CONFIG_WIFI_PASSWORD="MyWifiPassword"
+```
+
 Configuration is available in `menuconfig` in the `Project setting` section:

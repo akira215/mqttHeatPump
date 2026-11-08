@@ -1,6 +1,6 @@
 #pragma once
 
-
+#include "wifi.h"
 
 // Main class used for testing only
 class Main final
@@ -12,7 +12,8 @@ public:
     void setup(void);
 
 private:
-    void wifi_init_sta(void);
+    Wifi* wifi = nullptr;
+    //void wifi_init_sta(void);
     //DriverHomebus*  _hbs    = nullptr;
 
 

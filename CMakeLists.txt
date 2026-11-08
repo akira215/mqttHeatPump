@@ -4,10 +4,13 @@ cmake_minimum_required(VERSION 3.20)
 set(CMAKE_CXX_STANDARD 23)
 
 
-#set(EXTRA_COMPONENT_DIRS "../components/periodicTask" "../components/cppgpio")
+set(EXTRA_COMPONENT_DIRS components)
 
 set(COMPONENTS   main)
 set(EXCLUDE_COMPONENTS matter zigbee modbus)
+
+# Load sdkconfig from defaults files
+set(SDKCONFIG_DEFAULTS "sdkconfig.defaults;sdkconfig.secret")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(testWifi)

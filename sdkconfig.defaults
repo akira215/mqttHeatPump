@@ -1,0 +1,12 @@
+#
+# Authentification Mode
+#
+# CONFIG_WIFI_AUTH_OPEN is not set
+# CONFIG_WIFI_AUTH_WEP is not set
+# CONFIG_WIFI_AUTH_WPA_PSK is not set
+CONFIG_WIFI_AUTH_WPA2_PSK=y
+# CONFIG_WIFI_AUTH_WPA_WPA2_PSK is not set
+# CONFIG_WIFI_AUTH_ENTERPRISE is not set
+CONFIG_WIFI_AUTH_MODE=3
+# end of Authentification Mode
+# end of Wifi Device
