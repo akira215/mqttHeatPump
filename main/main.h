@@ -11,12 +11,11 @@ public:
     Main();
     void run(void);
     void setup(void);
+    void onMqttConnection(bool connected, int res);
+    void onMqttData(int msg_id, const std::string& topic, const std::string& data);
 
 private:
     Wifi*       _wifi = nullptr;
     MqttClient* _mqtt = nullptr;
-    //void wifi_init_sta(void);
-    //DriverHomebus*  _hbs    = nullptr;
 
-
-}; // Main Class
+}; // Main Class 

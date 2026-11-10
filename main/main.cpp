@@ -1,5 +1,3 @@
-//#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
-
 #include "main.h"
 
 #include "esp_log.h"
@@ -31,11 +29,24 @@ void Main::setup(void)
         _mqtt = new MqttClient();
         _mqtt->start();
     }
-
-    _mqtt->subscribeTopic("akira/test1",0);
+    _mqtt->registerConnectionHandler(&Main::onMqttConnection, this);
+    _mqtt->registerDataHandler(&Main::onMqttData, this);
 }
 
+void Main::onMqttConnection(bool connected, int res)
+{
+    if (connected) {
+        ESP_LOGI(TAG, "MQTT Connected. Session present: %d", res);
+        _mqtt->subscribeTopic("akira/test1",0);
+    } else {
+        ESP_LOGW(TAG, "MQTT Disconnected. Error type: %d", res);
+    }
+}
 
+void Main::onMqttData(int msg_id, const std::string& topic, const std::string& data)
+{
+    ESP_LOGI(TAG, "MQTT Data received. Message ID: %d, Topic: %s, Data: %s", msg_id, topic.c_str(), data.c_str());
+}
 
 void Main::run(void)
 {
@@ -50,8 +61,6 @@ extern "C" void app_main(void)
 {
     ESP_LOGI(TAG,"---------- Starting App ----------");
     App.setup();
-
-    
 
     while (true)
     {
