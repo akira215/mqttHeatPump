@@ -10,3 +10,9 @@ CONFIG_WIFI_AUTH_WPA2_PSK=y
 CONFIG_WIFI_AUTH_MODE=3
 # end of Authentification Mode
 # end of Wifi Device
+
+
+#
+# OpenThread
+#
+CONFIG_OPENTHREAD_ENABLED=y

@@ -6,12 +6,11 @@
 
 #include "esp_random.h" //todel
 
-
-
-
 static const char *TAG = "MainApp";
 
 Main App;
+
+
 
 
 Main::Main()
@@ -24,13 +23,45 @@ Main::Main()
 
 void Main::setup(void)
 {
+    _thread = new Thread();
+    _thread->registerHandler(&Main::threadEvent, this);
+    _thread->init();
+    /*
     _wifi = new Wifi();
     if (_wifi->isConnected()) {
         _mqtt = new MqttClient();
         _mqtt->start();
     }
+        
+    
     _mqtt->registerConnectionHandler(&Main::onMqttConnection, this);
     _mqtt->registerDataHandler(&Main::onMqttData, this);
+
+    */
+   
+}
+
+void  Main::threadEvent(esp_openthread_event_t event_id)
+{
+   if (event_id == OPENTHREAD_EVENT_GOT_IP6) {
+        bool first = true;
+        if(_mqtt)
+            first = false;
+
+        if(first)
+            _mqtt = new MqttClient();
+        
+        
+        _mqtt->stop();    
+        _mqtt->start();
+
+        if(first){
+            _mqtt->registerConnectionHandler(&Main::onMqttConnection, this);
+            _mqtt->registerDataHandler(&Main::onMqttData, this);
+        }
+
+    }
+   
 }
 
 void Main::onMqttConnection(bool connected, int res)
