@@ -26,19 +26,7 @@ void Main::setup(void)
     _thread = new Thread();
     _thread->registerHandler(&Main::threadEvent, this);
     _thread->init();
-    /*
-    _wifi = new Wifi();
-    if (_wifi->isConnected()) {
-        _mqtt = new MqttClient();
-        _mqtt->start();
-    }
-        
-    
-    _mqtt->registerConnectionHandler(&Main::onMqttConnection, this);
-    _mqtt->registerDataHandler(&Main::onMqttData, this);
 
-    */
-   
 }
 
 void  Main::threadEvent(esp_openthread_event_t event_id)

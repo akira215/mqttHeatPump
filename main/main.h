@@ -1,6 +1,5 @@
 #pragma once
 
-#include "wifi.h"
 #include "mqttClient.h"
 #include "thread.h"
 
@@ -20,7 +19,6 @@ public:
     void threadEvent(esp_openthread_event_t event_id);
 
 private:
-    //Wifi*       _wifi = nullptr;
     MqttClient* _mqtt = nullptr;
     Thread*     _thread = nullptr;
 
