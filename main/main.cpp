@@ -4,7 +4,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "config_json.h" //todel
+
 #include "esp_random.h" //todel
+
+
 
 static const char *TAG = "MainApp";
 
@@ -56,7 +60,14 @@ void Main::onMqttConnection(bool connected, int res)
 {
     if (connected) {
         ESP_LOGI(TAG, "MQTT Connected. Session present: %d", res);
-        _mqtt->subscribeTopic("akira/test1",0);
+        _mqtt->subscribeTopic(TOPIC_BASE SLASH TOPIC_SETPOINT SLASH TOPIC_STATE ,0);
+        
+        // Construct std::string from the string_view
+        std::string jsonData(JSON_DEVICE_CONFIG);
+
+        ESP_LOGI(TAG, "Sending %zu bytes of JSON", jsonData.size());
+        _mqtt->sendData("homeassistant/device/HeatPump/config",jsonData,1,1); // retain
+
     } else {
         ESP_LOGW(TAG, "MQTT Disconnected. Error type: %d", res);
     }
@@ -71,7 +82,7 @@ void Main::run(void)
 {
     int val = esp_random()%100;
 
-    _mqtt->sendData("akira/test1", std::to_string(val));
+    _mqtt->sendData(TOPIC_BASE SLASH "ambience/temperature", std::to_string(val));
     vTaskDelay(pdMS_TO_TICKS(2000)); // let time to reset watchdog
 }
 
