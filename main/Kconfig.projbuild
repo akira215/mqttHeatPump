@@ -3,6 +3,7 @@ menu "Project Settings"
     orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
 
     rsource "./Kconfig.main"
+    rsource "./../drivers/Kconfig.drivers"
     rsource "./../components/thread/Kconfig.thread"
     rsource "./../components/mqttClient/Kconfig.mqtt"
 

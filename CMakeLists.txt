@@ -13,4 +13,4 @@ set(EXCLUDE_COMPONENTS matter zigbee modbus)
 set(SDKCONFIG_DEFAULTS "sdkconfig.defaults;sdkconfig.secret")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(testWifi)
+project(mqttHeatPump)

@@ -1,0 +1,181 @@
+menu "GPIO Pins layout"
+    config MB_UART_PORT_NUM
+        int "UART port number"
+        range 0 2
+        default 1
+        help
+            UART communication port number for Modbus example.
+
+    config MB_UART_TXD
+        int "UART TXD pin number"
+        range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+        default 16
+        help
+            GPIO number for UART TX pin.
+            Put -1 to let the default setting.
+
+    config MB_UART_RXD
+        int "UART RXD pin number"
+        range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
+        default 17
+        help
+            GPIO number for UART RX pin.
+            Put -1 to let the default setting.
+
+    config MB_UART_RTS
+        int "UART RTS pin number"
+        range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+        default 19
+        help
+            GPIO number for UART RTS pin. This pin is connected to
+            ~RE/DE pin of RS485 transceiver to switch direction.
+            Put -1 to let the default setting.
+    
+     config MB_UART_CTS
+        int "UART CTS pin number"
+        range -1 ENV_GPIO_OUT_RANGE_MAX
+        default -1
+        help
+            GPIO number for UART CTS pin. This pin is connected to
+            ~RE/DE pin of RS485 transceiver to switch direction. 
+            Put -1 to let the default setting.
+endmenu
+
+
+menu "Modbus ALDES Communication Parameters"
+
+    config WRITE_RETRY
+        int "Number of retry for Modbus write"
+        range 0 65535
+        default 5
+        help
+           If write fail, it will retry this number of time.
+    
+    choice
+        prompt "Modbus communication format"
+        default MB_COMM_MODE_RTU if CONFIG_FMB_COMM_MODE_RTU_EN
+        help
+            Selection of Modbus communication format.
+
+        config MB_COMM_MODE_RTU
+            bool "RTU mode"
+            depends on FMB_COMM_MODE_RTU_EN
+
+        config MB_COMM_MODE_ASCII
+            bool "ASCII mode"
+            depends on FMB_COMM_MODE_ASCII_EN
+
+    endchoice
+
+    config MB_COMM_MODE
+        int
+        default 0 if MB_COMM_MODE_RTU
+        default 1 if MB_COMM_MODE_ASCII
+    
+    choice
+        prompt "UART mode"
+        default MB_MODE_RS485_HALF_DUPLEX
+        help
+            Selection of Modbus communication mode.
+
+        config MB_MODE_UART
+            bool "regular UART mode"
+
+        config MB_MODE_RS485_HALF_DUPLEX
+            bool "half duplex RS485 UART mode control by RTS pin"
+        
+        config MB_MODE_IRDA
+            bool "IRDA  UART mode"
+        
+        config MB_MODE_RS485_COLLISION_DETECT
+            bool "RS485 collision detection UART mode (used for test purposes)"
+        
+        config MB_MODE_RS485_APP_CTRL
+            bool "application control RS485 UART mode (used for test purposes)"
+
+    endchoice
+
+    config MB_UART_MODE
+        int
+        default 0 if MB_MODE_UART
+        default 1 if MB_MODE_RS485_HALF_DUPLEX
+        default 2 if MB_MODE_IRDA
+        default 3 if MB_MODE_RS485_COLLISION_DETECT
+        default 4 if MB_MODE_RS485_APP_CTRL
+
+        
+    config MB_UART_BAUD_RATE
+        int "UART communication speed"
+        range 1200 115200
+        default 9600
+        help
+            UART communication speed for Modbus.
+
+    choice
+        prompt "UART data bits"
+        default DATABITS_8
+        help
+            Selection of Modbus data bits length.
+
+        config DATABITS_5
+            bool "5"
+        config DATABITS_6
+            bool "6"
+        config DATABITS_7
+            bool "7"
+        config DATABITS_8
+            bool "8"
+    endchoice
+
+    config MB_UART_DATA_BITS
+        int
+        default 3 if DATABITS_8
+        default 0 if DATABITS_5
+        default 1 if DATABITS_6
+        default 2 if DATABITS_7
+    
+    choice 
+        prompt "Modbus parity"
+        default MB_PARITY_NONE
+        help
+            Selection of Modbus parity.
+
+        config MB_PARITY_NONE
+            bool "None"
+
+        config MB_PARITY_EVEN
+            bool "Even"
+        
+        config MB_PARITY_ODD
+            bool "Odd"
+    endchoice
+
+    config MB_UART_PARITY
+        int
+        default 0 if MB_PARITY_NONE
+        default 2 if MB_PARITY_EVEN
+        default 3 if MB_PARITY_ODD
+    
+    choice 
+        prompt "Modbus stop bits"
+        default MB_STOP_BITS_1
+        help
+            Selection of Modbus stop bits.
+
+        config MB_STOP_BITS_1
+            bool "1 stop bit"
+
+        config MB_STOP_BITS_1_5
+            bool "1.5 stop bit"
+        
+        config UART_STOP_BITS_2
+            bool "2 stop bits"
+    endchoice
+
+    config MB_UART_STOP_BITS
+        int
+        default 1 if MB_STOP_BITS_1
+        default 2 if MB_STOP_BITS_1_5
+        default 3 if UART_STOP_BITS_2
+
+endmenu

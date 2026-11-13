@@ -1,18 +1,35 @@
-#
-# Authentification Mode
-#
-# CONFIG_WIFI_AUTH_OPEN is not set
-# CONFIG_WIFI_AUTH_WEP is not set
-# CONFIG_WIFI_AUTH_WPA_PSK is not set
-CONFIG_WIFI_AUTH_WPA2_PSK=y
-# CONFIG_WIFI_AUTH_WPA_WPA2_PSK is not set
-# CONFIG_WIFI_AUTH_ENTERPRISE is not set
-CONFIG_WIFI_AUTH_MODE=3
-# end of Authentification Mode
-# end of Wifi Device
-
 
 #
 # OpenThread
 #
 CONFIG_OPENTHREAD_ENABLED=y
+
+#
+# Partition Table
+#
+# CONFIG_PARTITION_TABLE_SINGLE_APP is not set
+# CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE is not set
+# CONFIG_PARTITION_TABLE_TWO_OTA is not set
+# CONFIG_PARTITION_TABLE_TWO_OTA_LARGE is not set
+CONFIG_PARTITION_TABLE_CUSTOM=y
+# default:
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+# default:
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+# default:
+CONFIG_PARTITION_TABLE_OFFSET=0x8000
+# default:
+CONFIG_PARTITION_TABLE_MD5=y
+# end of Partition Table
+
+
+#
+# Application Rollback
+#
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+#
+# Serial flasher config
+#
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="8MB"

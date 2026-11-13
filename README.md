@@ -1,5 +1,6 @@
-# Test Wifi
+# mqttHeatPump
 
+This device allow to interface Daikin Heat pump + ASCII modbus hydraulic module for second heat area to mqtt, using OpenThread network
 
 ## Build Instructions
 
@@ -108,3 +109,10 @@ Configuration is available in `menuconfig` in the `Project setting` section:
 | **Capteur** | Envoi pression d'eau | `pac/pression/etat` | Ex. `1.5` |
 | **Capteur** | Envoi temp. départ d'eau | `pac/eau/depart/temperature` | Ex. `38.2` |
 | **Capteur** | Envoi temp. extérieure | `pac/exterieur/temperature` | Ex. `4.5` |
+
+
+
+## Credits
+
+ * [Daikin ESP32 WiFi controller by Greg Davill](https://gregdavill.com/posts/daikin-esp-001/)
+ * [Control your heat pump from Home Assistant with P1P2MQTT](https://github.com/Arnold-n/P1P2MQTT)

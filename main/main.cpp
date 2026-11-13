@@ -89,7 +89,7 @@ void Main::run(void)
 
 extern "C" void app_main(void)
 {
-    ESP_LOGI(TAG,"---------- Starting App ----------");
+    ESP_LOGI(TAG,"---------- Starting App V0.3----------");
     App.setup();
 
     while (true)
