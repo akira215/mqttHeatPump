@@ -2,6 +2,11 @@
 
 #include "mqttClient.h"
 #include "thread.h"
+#include "deviceDatas.h"
+#include <string>
+
+#include "driverHomebus.h"
+#include "driverDaikin.h"
 
 // Main class used for testing only
 class Main final
@@ -19,7 +24,19 @@ public:
     void threadEvent(esp_openthread_event_t event_id);
 
 private:
-    MqttClient* _mqtt = nullptr;
-    Thread*     _thread = nullptr;
+    MqttClient*     _mqtt = nullptr;
+    Thread*         _thread = nullptr;
+    DriverHomebus*  _hbs    = nullptr;
+    DriverDaikin*   _daikin = nullptr;
+
+    static DeviceDatas _deviceDatas;  // data structure for all the device datas
+
+    struct MqttMessage {
+        std::string topic;
+        std::string payload;
+    }; // to send message to mqtt broker
+    
+    std::array<MqttMessage, DeviceDatas::kCount> _messages {};
+
 
 }; // Main Class 

@@ -3,11 +3,7 @@
 
 #include <string_view>
 
-#define SLASH           "/"
-#define TOPIC_BASE      "HeatPump"
-#define TOPIC_SETPOINT  "Setpoint"
-#define TOPIC_STATE     "state"
-#define TOPIC_SET       "set"
+#define TOPIC_BASE      "HeatPump/"
 
 #define PORT_NUMBER 8080
 
@@ -16,13 +12,16 @@
 #define STRINGIFY(x) STRINGIFY_IMPL(x)
 
 // Using R"json( ... )json" avoids conflicts if your JSON contains )"
+
+
+// Domestic hot water DHW
 inline constexpr std::string_view JSON_DEVICE_CONFIG = R"json(
 {
   "device": {
     "identifiers": ["HeatPump_01"],
-    "name": "Pompe à Chaleur",
-    "manufacturer": "DIY",
-    "model": "Controller PAC"
+    "name": "ESP Heat Manager",
+    "manufacturer": "Akira Corp.",
+    "model": "espHeat"
   },
   "origin": {
     "name": "PAC_MQTT_Bridge",
@@ -31,13 +30,13 @@ inline constexpr std::string_view JSON_DEVICE_CONFIG = R"json(
   "components": {
     "thermostat": {
       "platform": "climate",
-      "name": "Thermostat",
-      "unique_id": "pac_01_climate",
-      "current_temperature_topic": ")json" TOPIC_BASE R"json(/ambience/temperature",
-      "temperature_state_topic": ")json" TOPIC_BASE SLASH TOPIC_SETPOINT SLASH TOPIC_STATE R"json(",
-      "temperature_command_topic": ")json" TOPIC_BASE SLASH TOPIC_SETPOINT SLASH TOPIC_SET R"json(",
-      "mode_state_topic": ")json" TOPIC_BASE R"json(/mode/etat",
-      "mode_command_topic": ")json" TOPIC_BASE R"json(/mode/set",
+      "name": "Thermostat Heat Pump",
+      "unique_id": "HeatPump_01_climate",
+      "current_temperature_topic": ")json" TOPIC_BASE R"json(room/temperature",
+      "temperature_state_topic": ")json" TOPIC_BASE R"json(setpoint/state",
+      "temperature_command_topic": ")json" TOPIC_BASE R"json(setpoint/set",
+      "mode_state_topic": ")json" TOPIC_BASE R"json(mode/etat",
+      "mode_command_topic": ")json" TOPIC_BASE R"json(mode/set",
       "modes": ["off", "heat"],
       "min_temp": 15,
       "max_temp": 26,
@@ -48,8 +47,8 @@ inline constexpr std::string_view JSON_DEVICE_CONFIG = R"json(
       "platform": "switch",
       "name": "Marche / Arrêt",
       "unique_id": "pac_01_switch",
-      "state_topic": ")json" TOPIC_BASE R"json(/power/etat",
-      "command_topic": ")json" TOPIC_BASE R"json(/power/set",
+      "state_topic": ")json" TOPIC_BASE R"json(power/etat",
+      "command_topic": ")json" TOPIC_BASE R"json(power/set",
       "payload_on": "ON",
       "payload_off": "OFF",
       "icon": "mdi:heat-pump"
@@ -58,7 +57,7 @@ inline constexpr std::string_view JSON_DEVICE_CONFIG = R"json(
       "platform": "sensor",
       "name": "Pression d'eau",
       "unique_id": "pac_01_pression",
-      "state_topic": ")json" TOPIC_BASE R"json(/pression/etat",
+      "state_topic": ")json" TOPIC_BASE R"json(pression/etat",
       "device_class": "pressure",
       "unit_of_measurement": "bar",
       "state_class": "measurement"
@@ -67,7 +66,7 @@ inline constexpr std::string_view JSON_DEVICE_CONFIG = R"json(
       "platform": "sensor",
       "name": "Température départ d'eau",
       "unique_id": "pac_01_temp_depart",
-      "state_topic": ")json" TOPIC_BASE R"json(/eau/depart/temperature",
+      "state_topic": ")json" TOPIC_BASE R"json(eau/depart/temperature",
       "device_class": "temperature",
       "unit_of_measurement": "°C",
       "state_class": "measurement"
@@ -76,7 +75,7 @@ inline constexpr std::string_view JSON_DEVICE_CONFIG = R"json(
       "platform": "sensor",
       "name": "Température extérieure",
       "unique_id": "pac_01_temp_ext",
-      "state_topic": ")json" TOPIC_BASE R"json(/exterieur/temperature",
+      "state_topic": ")json" TOPIC_BASE R"json(exterieur/temperature",
       "device_class": "temperature",
       "unit_of_measurement": "°C",
       "state_class": "measurement"

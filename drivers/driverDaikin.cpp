@@ -1,13 +1,48 @@
 
-#include <esp_log.h>
 #include <cstdio>
 
 #include "driverDaikin.h"
 
-namespace esphome {
-namespace espheat {
+#include "esp_random.h" //todel
+
+#include <esp_log.h>
 
 static const char *TAG = "DriverDaikin";
+
+
+//TODEL
+// Returns a random float in the range [0.0f, 1.0f)
+float random_float(void) {
+    // Shift right by 8 bits to fit the 24-bit mantissa of a 32-bit float cleanly
+    return (esp_random() >> 8) * (1.0f / 16777216.0f);
+}
+
+// Returns a random float in a custom range [min, max)
+float random_float_range(float min, float max) {
+    return min + random_float() * (max - min);
+}
+
+static int random_int_range(int min, int max)
+{
+    if (min > max) {
+        std::swap(min, max);
+    }
+
+    constexpr uint64_t randomDomain = uint64_t{1} << 32;
+    const uint64_t range =
+        static_cast<uint64_t>(static_cast<int64_t>(max) - min) + 1;
+    const uint64_t limit = randomDomain - randomDomain % range;
+
+    uint32_t value;
+    do {
+        value = esp_random();
+    } while (static_cast<uint64_t>(value) >= limit);
+
+    return static_cast<int>(
+        static_cast<int64_t>(min) + static_cast<uint64_t>(value) % range
+    );
+}
+
 
 
 // Static
@@ -38,7 +73,7 @@ const uint8_t DriverDaikin::CRC_TABLE[256] = {
     0x77, 0xa7, 0x64, 0xb4, 0x51, 0x81, 0x42, 0x92, 0x3b, 0xeb, 0x28, 0xf8,
     0x1d, 0xcd, 0x0e, 0xde};
 
-DriverDaikin::DriverDaikin()
+DriverDaikin::DriverDaikin(DeviceDatas* datas) : _pDatas(datas)
 {
     ESP_LOGI(TAG, "DriverDaikin::DriverDaikin() starting");
 }
@@ -62,6 +97,14 @@ void DriverDaikin::callback(const std::vector<uint8_t>& buffer)
         ESP_LOG_BUFFER_HEXDUMP(TAG, buffer.data(), buffer.size(), ESP_LOG_INFO);
         return;
     }
+
+    // Logic start Here
+    float fVal = random_float_range(-2.0f, 40.0f);
+    _pDatas->setByKey(DataKey::roomTemperature, fVal);
+
+    int iVal = random_int_range(0,10);
+    _pDatas->setByKey(DataKey::backupHeater, iVal);
+
 
 }
 
@@ -138,6 +181,3 @@ void DriverDaikin::printDashboard()
     */
 
 }
-
-} // namespace espheat
-} // namespace esphome

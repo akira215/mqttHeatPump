@@ -4,10 +4,6 @@
 #include "driver/rmt_encoder.h"
 #include "DriverHomebus.h"
 
-
-namespace esphome {
-namespace espheat {
-
 static const char *TAG = "DriverHomebus";
 std::function<void(const std::vector<uint8_t>&)> DriverHomebus::_callback = nullptr;
 
@@ -67,8 +63,6 @@ DriverHomebus::DriverHomebus()
     tx_config.mem_block_symbols = 64;
     tx_config.trans_queue_depth = 1;
     tx_config.flags.invert_out = 0;
-    tx_config.flags.io_od_mode = false;
-    tx_config.flags.io_loop_back = false;
 
     esp_err_t err = rmt_new_tx_channel(&tx_config, &_tx);
     if (err != ESP_OK)
@@ -329,7 +323,7 @@ void DriverHomebus::rxTask(void *pvParameters)
             }
         }
         //vTaskDelay(pdMS_TO_TICKS(10));
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
     vTaskDelete(NULL);
 }
@@ -451,6 +445,3 @@ void DriverHomebus::printPacket(const std::vector<uint8_t>& data)
     *p = 0;
     ESP_LOGV(TAG, "%s", str);
 }
-
-} // namespace espheat
-} // namespace esphome

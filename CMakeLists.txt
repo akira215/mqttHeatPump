@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.20)
 set(CMAKE_CXX_STANDARD 23)
 
 
-set(EXTRA_COMPONENT_DIRS components)
+set(EXTRA_COMPONENT_DIRS components drivers)
 
 set(COMPONENTS   main)
 set(EXCLUDE_COMPONENTS matter zigbee modbus)

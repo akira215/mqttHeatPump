@@ -71,9 +71,6 @@ Read/Write 0 bit:
 
 */
 
-namespace esphome {
-namespace espheat {
-
 
 // Driver class used for testing only
 class DriverHomebus final
@@ -148,6 +145,3 @@ private:
     static void rxTask(void *pvParameters);
 
 }; //class DriverAdh
-
-} // namespace espheat
-} // namespace esphome

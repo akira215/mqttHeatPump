@@ -1,6 +1,5 @@
 #include "main.h"
 
-#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -8,28 +7,37 @@
 
 #include "esp_random.h" //todel
 
-
+#include <esp_log.h>
 
 static const char *TAG = "MainApp";
 
 Main App;
-
-
-
+DeviceDatas Main::_deviceDatas{};
 
 Main::Main()
 {
     // Setting the log level for each module
     esp_log_level_set("Main_app", ESP_LOG_VERBOSE);  // Put verbose to check available stack
-    esp_log_level_set("Wifi", ESP_LOG_VERBOSE);
-    esp_log_level_set("MqttClient", ESP_LOG_VERBOSE);
+    esp_log_level_set("MqttClient", ESP_LOG_DEBUG);
+    esp_log_level_set("DriverHomebus", ESP_LOG_INFO);
+    esp_log_level_set("DriverDaikin", ESP_LOG_VERBOSE);
 }
 
 void Main::setup(void)
 {
+    ESP_LOGI(TAG,"---------- Starting App V0.3----------");
+    // Thread Network (mqtt iniitialized after thread connection is ok)
     _thread = new Thread();
     _thread->registerHandler(&Main::threadEvent, this);
     _thread->init();
+
+    // HBS communication
+    _hbs = new DriverHomebus();
+    _daikin = new DriverDaikin(&_deviceDatas);
+
+    _hbs->registerCallback(&DriverDaikin::callback, _daikin);
+
+    _hbs->start();
 
 }
 
@@ -60,8 +68,9 @@ void Main::onMqttConnection(bool connected, int res)
 {
     if (connected) {
         ESP_LOGI(TAG, "MQTT Connected. Session present: %d", res);
-        _mqtt->subscribeTopic(TOPIC_BASE SLASH TOPIC_SETPOINT SLASH TOPIC_STATE ,0);
+        _mqtt->subscribeTopic(TOPIC_BASE "setpoint/state" ,0);
         
+        // send config message
         // Construct std::string from the string_view
         std::string jsonData(JSON_DEVICE_CONFIG);
 
@@ -80,16 +89,33 @@ void Main::onMqttData(int msg_id, const std::string& topic, const std::string& d
 
 void Main::run(void)
 {
-    int val = esp_random()%100;
+    size_t count = 0;
+    // get all the data to be reported, locking the mutex
+    _deviceDatas.forEach([&](DataKey key, IData& item) {
+        if (item.isReportable()) {
+            //ESP_LOGW("datas", "Key %zu is reportable", static_cast<size_t>(key));
+            _messages[count++] = {item.getTopic(), item.getValue()};
+        } 
+    });
 
-    _mqtt->sendData(TOPIC_BASE SLASH "ambience/temperature", std::to_string(val));
+    // Send all data to mqtt
+    for (size_t i = 0; i < count; ++i) {
+        _mqtt->sendData(std::string(TOPIC_BASE) + _messages[i].topic, _messages[i].payload);
+    }
+
+
+
+
+
+
     vTaskDelay(pdMS_TO_TICKS(2000)); // let time to reset watchdog
 }
 
 
+
+
 extern "C" void app_main(void)
 {
-    ESP_LOGI(TAG,"---------- Starting App V0.3----------");
     App.setup();
 
     while (true)
