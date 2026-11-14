@@ -84,6 +84,10 @@ void Main::onMqttConnection(bool connected, int res)
 
 void Main::onMqttData(int msg_id, const std::string& topic, const std::string& data)
 {
+    /******************************************************************** */
+    /******************************************************************** */
+    /******************************************************************** */
+    /******************************************************************** */
     ESP_LOGI(TAG, "MQTT Data received. Message ID: %d, Topic: %s, Data: %s", msg_id, topic.c_str(), data.c_str());
 }
 
@@ -102,11 +106,6 @@ void Main::run(void)
     for (size_t i = 0; i < count; ++i) {
         _mqtt->sendData(std::string(TOPIC_BASE) + _messages[i].topic, _messages[i].payload);
     }
-
-
-
-
-
 
     vTaskDelay(pdMS_TO_TICKS(2000)); // let time to reset watchdog
 }

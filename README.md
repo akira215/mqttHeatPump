@@ -1,6 +1,14 @@
 # mqttHeatPump
 
-This device allow to interface Daikin Heat pump + ASCII modbus hydraulic module for second heat area to mqtt, using OpenThread network
+This device allow to interface Daikin Heat pump + ASCII modbus hydraulic mixing module for second heat area to mqtt, using OpenThread network
+
+## Functions
+
+ * Connection to MQTT broker using OpenThread Network
+ * Connection to Daikin Heat Pumpusing Homebus protocol
+ * Connection to Hydraulic Mixing Module using ASCII modbus
+ * OTA software update
+ * Send configuration message to Home Assistant  
 
 ## Build Instructions
 
@@ -17,6 +25,8 @@ Create a partition.csv for zigbee and configure menuconfig with custom partition
 Provide a `sdkconfig.secret` files for your Mqtt credentials and thread active tvl dataset:
 
 ```
+CONFIG_MQTT_BROKER_URL="mqtt://[fde4:......]"
+
 CONFIG_MQTT_USERNAME="user-mqtt"
 CONFIG_MQTT_PASSWORD="mqttpassword"
 
@@ -109,6 +119,10 @@ Configuration is available in `menuconfig` in the `Project setting` section:
 | **Capteur** | Envoi pression d'eau | `pac/pression/etat` | Ex. `1.5` |
 | **Capteur** | Envoi temp. départ d'eau | `pac/eau/depart/temperature` | Ex. `38.2` |
 | **Capteur** | Envoi temp. extérieure | `pac/exterieur/temperature` | Ex. `4.5` |
+
+## Status
+
+ON going works
 
 
 
