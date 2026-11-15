@@ -3,21 +3,20 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "config_json.h" //todel
-
-#include "esp_random.h" //todel
+#include "config_json.h"
 
 #include <esp_log.h>
 
 static const char *TAG = "MainApp";
 
 Main App;
+
 DeviceDatas Main::_deviceDatas{};
 
 Main::Main()
 {
     // Setting the log level for each module
-    esp_log_level_set("Main_app", ESP_LOG_VERBOSE);  // Put verbose to check available stack
+    esp_log_level_set("MainApp", ESP_LOG_VERBOSE);  // Put verbose to check available stack
     esp_log_level_set("MqttClient", ESP_LOG_DEBUG);
     esp_log_level_set("DriverHomebus", ESP_LOG_INFO);
     esp_log_level_set("DriverDaikin", ESP_LOG_VERBOSE);
@@ -35,7 +34,7 @@ void Main::setup(void)
     _hbs = new DriverHomebus();
     _daikin = new DriverDaikin(&_deviceDatas);
 
-    _hbs->registerCallback(&DriverDaikin::callback, _daikin);
+    _hbs->registerCallback(&DriverDaikin::onDataReceived, _daikin);
 
     _hbs->start();
 
@@ -68,7 +67,8 @@ void Main::onMqttConnection(bool connected, int res)
 {
     if (connected) {
         ESP_LOGI(TAG, "MQTT Connected. Session present: %d", res);
-        _mqtt->subscribeTopic(TOPIC_BASE "setpoint/state" ,0);
+        _mqtt->subscribeTopic(CONFIG_TOPIC_BASE "setpoint/set" , 2);
+        _mqtt->subscribeTopic(CONFIG_TOPIC_BASE "mode/set" , 2);
         
         // send config message
         // Construct std::string from the string_view
@@ -88,11 +88,25 @@ void Main::onMqttData(int msg_id, const std::string& topic, const std::string& d
     /******************************************************************** */
     /******************************************************************** */
     /******************************************************************** */
-    ESP_LOGI(TAG, "MQTT Data received. Message ID: %d, Topic: %s, Data: %s", msg_id, topic.c_str(), data.c_str());
+    
+    if (topic == (CONFIG_TOPIC_BASE "setpoint/set") ) {
+        _daikin->setSetpointTemperature(std::stof(data)); 
+    } else if (topic == (CONFIG_TOPIC_BASE "mode/set") ) {
+        _daikin->setMode(data);
+    } else {
+        ESP_LOGW(TAG, "MQTT Data received not catched. Message ID: %d, Topic: %s, Data: %s", msg_id, topic.c_str(), data.c_str());
+    }
+        
 }
 
 void Main::run(void)
 {
+    if (!_mqtt || !_mqtt->isConnected()) {
+        // to avoid triggering the timer before mqtt connect
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        return;
+    }
+
     size_t count = 0;
     // get all the data to be reported, locking the mutex
     _deviceDatas.forEach([&](DataKey key, IData& item) {
@@ -104,7 +118,7 @@ void Main::run(void)
 
     // Send all data to mqtt
     for (size_t i = 0; i < count; ++i) {
-        _mqtt->sendData(std::string(TOPIC_BASE) + _messages[i].topic, _messages[i].payload);
+        _mqtt->sendData(std::string(CONFIG_TOPIC_BASE) + _messages[i].topic, _messages[i].payload);
     }
 
     vTaskDelay(pdMS_TO_TICKS(2000)); // let time to reset watchdog

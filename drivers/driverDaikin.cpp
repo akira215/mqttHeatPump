@@ -83,30 +83,7 @@ DriverDaikin::~DriverDaikin()
 
 }
 
-void DriverDaikin::callback(const std::vector<uint8_t>& buffer)
-{
-    printPacket(buffer);
 
-    // Validate CRC
-    uint8_t received_crc = buffer.back();
-    uint8_t calculated_crc = computeCRC( buffer);
-
-    if (received_crc != calculated_crc) {
-        ESP_LOGE(TAG, "CRC error: received 0x%02X, calculated 0x%02X (len=%lu)",
-                received_crc, calculated_crc, buffer.size());
-        ESP_LOG_BUFFER_HEXDUMP(TAG, buffer.data(), buffer.size(), ESP_LOG_INFO);
-        return;
-    }
-
-    // Logic start Here
-    float fVal = random_float_range(-2.0f, 40.0f);
-    _pDatas->setByKey(DataKey::roomTemperature, fVal);
-
-    int iVal = random_int_range(0,10);
-    _pDatas->setByKey(DataKey::backupHeater, iVal);
-
-
-}
 
 //static 
 uint8_t DriverDaikin::computeCRC(const std::vector<uint8_t>& data)
@@ -180,4 +157,53 @@ void DriverDaikin::printDashboard()
     _registerMap.unlock();
     */
 
+}
+
+
+void DriverDaikin::onDataReceived(const std::vector<uint8_t>& buffer)
+{
+    printPacket(buffer);
+
+    // Validate CRC
+    uint8_t received_crc = buffer.back();
+    uint8_t calculated_crc = computeCRC( buffer);
+
+    if (received_crc != calculated_crc) {
+        ESP_LOGE(TAG, "CRC error: received 0x%02X, calculated 0x%02X (len=%lu)",
+                received_crc, calculated_crc, buffer.size());
+        ESP_LOG_BUFFER_HEXDUMP(TAG, buffer.data(), buffer.size(), ESP_LOG_INFO);
+        return;
+    }
+
+    // Logic start Here
+    float fVal = random_float_range(-2.0f, 40.0f);
+    _pDatas->setByKey(DataKey::roomTemperature, fVal);
+
+    _pDatas->setByKey(DataKey::setpointTemperature, _setpointTemperature);
+
+    _pDatas->setByKey(DataKey::heatPumpMode, _mode ? "heat" : "off");
+
+    int iVal = random_int_range(0,10);
+    _pDatas->setByKey(DataKey::backupHeater, iVal);
+
+
+}
+
+///////////////////// Setters
+
+void DriverDaikin::setSetpointTemperature(float temp)
+{
+    ESP_LOGD(TAG, "Setpoint temperature: %f", temp);
+    _setpointTemperature = temp ;
+}
+
+void DriverDaikin::setMode(const std::string& mode)
+{
+    ESP_LOGD(TAG, "Turning Heat Pump Mode to %s", mode.c_str());
+    if (mode == "heat"){
+        _mode = true;
+    } else if (mode == "off") {
+        _mode = false;
+    }
+    
 }

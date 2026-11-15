@@ -11,10 +11,11 @@
 // Define your keys as sequential integers starting at 0
 enum class DataKey : size_t {
     roomTemperature = 0,
-    backupHeater,
+    setpointTemperature,
     heatPumpMode,
+    backupHeater,
     status,
-    Count // Automatically tracks total number of keys (4)
+    Count // Automatically tracks total number of keys
 };
 
 class DeviceDatas {
@@ -54,17 +55,20 @@ public:
 
 
     //  Concrete compile-time locked members (no heap allocation)
+    // this should be aligned with the config definition of config-json.h
     Data<float>         roomTemperature{"room/temperature"};        // Empty, minDelta = 0.5f
+    Data<float>         setpointTemperature{"setpoint/state", 1};   // Empty, minDelta = 0.5f
+    Data<std::string>   heatPumpMode{"mode/state", 1};              // Empty, minDelta = 0.0f
     Data<int>           backupHeater{"BackupHeater/level"};         // Empty, minDelta = 2.0f
-    Data<bool>          heatPumpMode{"mode/set"};                   // Empty, minDelta = 0.0f
     Data<std::string>   status{"status/set"};  // Initialized to "Booting"
     
     // O(1) Direct-indexed array (order must match DataKey enum)
     static constexpr size_t kCount = static_cast<size_t>(DataKey::Count);
     const std::array<IData*, kCount> registry{{
         &roomTemperature,
-        &backupHeater,
+        &setpointTemperature,
         &heatPumpMode,
+        &backupHeater,
         &status
     }};
 
@@ -114,28 +118,3 @@ public:
         }
     }
 };
-
-/*
-_deviceDatas.withLock([](DeviceDatas& data) {
-            if (!data.temp().empty() && !data.hum().empty()) {
-                float t = data.temp().get();
-                int h   = data.hum().get();
-                ESP_LOGI("NET", "Snapshot -> T: %.2f, H: %d%%, Status: %s",
-                         t, h, data.deviceStatus().get().c_str());
-            }
-        });
-
-
-
-        // Loop through every entry safely under one mutex lock
-_deviceDatas.forEach([](DataKey key, const IDeviceData& item) {
-    if (item.empty()) {
-        ESP_LOGW("TELEMETRY", "Key %zu is empty", static_cast<size_t>(key));
-    } else {
-        ESP_LOGI("TELEMETRY", "Key %zu = %s",
-                 static_cast<size_t>(key),
-                 item.toString().c_str());
-    }
-});
-
-*/
