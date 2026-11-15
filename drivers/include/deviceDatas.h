@@ -13,8 +13,12 @@ enum class DataKey : size_t {
     roomTemperature = 0,
     setpointTemperature,
     heatPumpMode,
+    waterPressure,
+    leavingTemperature,
+    outdoorTemperature,
+    flowrate,
     backupHeater,
-    status,
+    operationMode,
     Count // Automatically tracks total number of keys
 };
 
@@ -52,15 +56,17 @@ public:
     DeviceDatas(const DeviceDatas&) = delete;
     DeviceDatas& operator=(const DeviceDatas&) = delete;
 
-
-
     //  Concrete compile-time locked members (no heap allocation)
-    // this should be aligned with the config definition of config-json.h
-    Data<float>         roomTemperature{"room/temperature"};        // Empty, minDelta = 0.5f
-    Data<float>         setpointTemperature{"setpoint/state", 1};   // Empty, minDelta = 0.5f
-    Data<std::string>   heatPumpMode{"mode/state", 1};              // Empty, minDelta = 0.0f
-    Data<int>           backupHeater{"BackupHeater/level"};         // Empty, minDelta = 2.0f
-    Data<std::string>   status{"status/set"};  // Initialized to "Booting"
+    // this should be aligned with the config definition of config_json.h
+    Data<float>         roomTemperature     {"room/temperature"};       // Empty, minDelta = 0.5f
+    Data<float>         setpointTemperature {"setpoint/state", 0};      // Empty, minDelta = 0.5f
+    Data<std::string>   heatPumpMode        {"mode/state", 0};              // Empty, minDelta = 0.0f
+    Data<float>         waterPressure       {"pressure/state"};         // Empty, minDelta = 0.5f
+    Data<float>         leavingTemperature  {"leavingwater/temperature"};   // Empty, minDelta = 0.5f
+    Data<float>         outdoorTemperature  {"outdoor/temperature"};    // Empty, minDelta = 0.5f
+    Data<float>         flowrate            {"flowrate/flow"};          // Empty, minDelta = 0.5f
+    Data<std::string>   backupHeater        {"backup_heater/level", 0};    // Empty, minDelta = 2.0f
+    Data<std::string>   operationMode       {"operation/mode", 0};         // frost oil return 
     
     // O(1) Direct-indexed array (order must match DataKey enum)
     static constexpr size_t kCount = static_cast<size_t>(DataKey::Count);
@@ -68,8 +74,12 @@ public:
         &roomTemperature,
         &setpointTemperature,
         &heatPumpMode,
+        &waterPressure,
+        &leavingTemperature,
+        &outdoorTemperature,
+        &flowrate, 
         &backupHeater,
-        &status
+        &operationMode
     }};
 
 private:

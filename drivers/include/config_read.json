@@ -1,0 +1,95 @@
+{
+  "device": {
+    "identifiers": [
+      "HeatPump_01"
+    ],
+    "name": "ESP Heat Manager",
+    "manufacturer": "Akira Corp.",
+    "model": "mqttHeatPump"
+  },
+  "origin": {
+    "name": "PAC_MQTT_Bridge",
+    "sw_version": "1.0"
+  },
+  "components": {
+    "thermostat": {
+      "platform": "climate",
+      "name": "Thermostat Heat Pump",
+      "unique_id": "HeatPump_01_climate",
+      "precision": 0.1,
+      "temp_step": 0.5,
+      "min_temp": 15,
+      "max_temp": 26,
+      "temperature_unit": "C",
+      "current_temperature_topic": "HeatPump/room/temperature",
+      "temperature_state_topic": "HeatPump/setpoint/state",
+      "temperature_command_topic": "HeatPump/setpoint/set",
+      "mode_state_topic": "HeatPump/mode/state",
+      "mode_command_topic": "HeatPump/mode/set",
+      "modes": [
+        "off",
+        "heat"
+      ]
+    },
+    "water_pressure": {
+      "platform": "sensor",
+      "name": "Water Pressure",
+      "unique_id": "HeatPump_01_pressure",
+      "state_topic": "HeatPump/pression/state",
+      "device_class": "pressure",
+      "unit_of_measurement": "bar",
+      "state_class": "measurement"
+    },
+    "leaving_water_temperature": {
+      "platform": "sensor",
+      "name": "Leaving Ater Temperature",
+      "unique_id": "HeatPump_01_leaving_temp",
+      "state_topic": "HeatPump/leavingwater/temperature",
+      "device_class": "temperature",
+      "unit_of_measurement": "°C",
+      "state_class": "measurement"
+    },
+    "outdoor_temperature": {
+      "platform": "sensor",
+      "name": "Outdoor Temperature",
+      "unique_id": "HeatPump_01_outdoor_temperature",
+      "state_topic": "HeatPump/outdoor/temperature",
+      "device_class": "temperature",
+      "unit_of_measurement": "°C",
+      "state_class": "measurement"
+    },
+    "flow_rate": {
+      "platform": "sensor",
+      "name": "Flow rate",
+      "unique_id": "HeatPump_01_flow_rate",
+      "state_topic": "HeatPump/flowrate/flow",
+      "device_class": "volume_flow_rate",
+      "unit_of_measurement": "L/min",
+      "state_class": "measurement"
+    },
+    "backup_heater": {
+      "name": "Backup Heater Level",
+      "unique_id": "HeatPump_01_backup_heater",
+      "state_topic": "HeatPump/backup_heater/level",
+      "device_class": "enum",
+      "options": [
+        "none",
+        "backup_1",
+        "backup_2",
+        "backup_1_2"
+      ]
+    },
+    "operation_mode": {
+      "name": "Operation mode",
+      "unique_id": "HeatPump_01_operation_mode",
+      "state_topic": "HeatPump/operation/mode",
+      "device_class": "enum",
+      "options": [
+        "normal",
+        "defrost",
+        "oil_return"
+      ]
+    }
+  }
+}
+

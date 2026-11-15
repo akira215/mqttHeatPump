@@ -183,10 +183,22 @@ void DriverDaikin::onDataReceived(const std::vector<uint8_t>& buffer)
 
     _pDatas->setByKey(DataKey::heatPumpMode, _mode ? "heat" : "off");
 
-    int iVal = random_int_range(0,10);
-    _pDatas->setByKey(DataKey::backupHeater, iVal);
-
-
+    int ibackupHeater = random_int_range(0,3);
+    switch (ibackupHeater){
+    case 0:
+        _pDatas->setByKey(DataKey::backupHeater, "none");
+        break;
+    case 1:
+        _pDatas->setByKey(DataKey::backupHeater, "backup_1");
+        break;
+    case 2:
+        _pDatas->setByKey(DataKey::backupHeater, "backup_2");
+        break;
+    case 3:
+        _pDatas->setByKey(DataKey::backupHeater, "backup_1_2");
+        break;
+    }
+    
 }
 
 ///////////////////// Setters

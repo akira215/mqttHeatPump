@@ -9,7 +9,7 @@
 
 // Using R"json( ... )json" avoids conflicts if your JSON contains )"
 
-
+// To be aligned with definition of deviceDatas.h
 // Domestic hot water DHW
 inline constexpr std::string_view JSON_DEVICE_CONFIG = R"json(
 {
@@ -40,42 +40,68 @@ inline constexpr std::string_view JSON_DEVICE_CONFIG = R"json(
       "mode_command_topic": ")json" CONFIG_TOPIC_BASE R"json(mode/set",
       "modes": ["off", "heat"]
     },
-    "alimentation": {
-      "platform": "switch",
-      "name": "Marche / Arrêt",
-      "unique_id": "pac_01_switch",
-      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(power/state",
-      "command_topic": ")json" CONFIG_TOPIC_BASE R"json(power/set",
-      "payload_on": "ON",
-      "payload_off": "OFF",
-      "icon": "mdi:heat-pump"
-    },
-    "pression_eau": {
+    "water_pressure": {
       "platform": "sensor",
-      "name": "Pression d'eau",
-      "unique_id": "pac_01_pression",
-      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(pression/etat",
+      "name": "Water Pressure",
+      "unique_id": "HeatPump_01_pressure",
+      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(pressure/state",
       "device_class": "pressure",
       "unit_of_measurement": "bar",
       "state_class": "measurement"
     },
-    "temp_depart": {
+    "leaving_water_temperature": {
       "platform": "sensor",
-      "name": "Température départ d'eau",
-      "unique_id": "pac_01_temp_depart",
-      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(eau/depart/temperature",
+      "name": "Leaving Water Temperature",
+      "unique_id": "HeatPump_01_leaving_temp",
+      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(leavingwater/temperature",
       "device_class": "temperature",
       "unit_of_measurement": "°C",
       "state_class": "measurement"
     },
-    "temp_exterieure": {
+    "outdoor_temperature": {
       "platform": "sensor",
-      "name": "Température extérieure",
-      "unique_id": "pac_01_temp_ext",
-      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(exterieur/temperature",
+      "name": "Outdoor Temperature",
+      "unique_id": "HeatPump_01_outdoor_temperature",
+      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(outdoor/temperature",
       "device_class": "temperature",
       "unit_of_measurement": "°C",
       "state_class": "measurement"
+    },
+    "flow_rate": {
+      "platform": "sensor",
+      "name": "Flow rate",
+      "unique_id": "HeatPump_01_flow_rate",
+      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(flowrate/flow",
+      "device_class": "volume_flow_rate",
+      "unit_of_measurement": "L/min",
+      "state_class": "measurement"
+    },
+    "backup_heater": {
+      "platform": "sensor",
+      "name": "Backup Heater Level",
+      "unique_id": "HeatPump_01_backup_heater",
+      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(backup_heater/level",
+      "icon": "mdi:heating-coil",
+      "device_class": "enum",
+      "options": [
+        "none",
+        "backup_1",
+        "backup_2",
+        "backup_1_2"
+      ]
+    },
+    "operation_mode": {
+      "platform": "sensor",
+      "name": "Operation mode",
+      "unique_id": "HeatPump_01_operation_mode",
+      "state_topic": ")json" CONFIG_TOPIC_BASE R"json(operation/mode",
+      "icon": "mdi:cog-sync",
+      "device_class": "enum",
+      "options": [
+        "normal",
+        "defrost",
+        "oil_return"
+      ]
     }
   }
 }
