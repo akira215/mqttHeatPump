@@ -22,7 +22,7 @@ namespace Direction
 namespace Address
 {
   constexpr uint8_t MAIN_CONTROLLER = 0x00;
-  constexpr uint8_t AUX_CONTROLLER = 0xF0;
+  constexpr uint8_t ESP32_CONTROLLER = 0xF0; // Could be 0xF1, check on the bus is F0 already exists
 }
 
 // Packet types (third byte)

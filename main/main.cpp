@@ -69,6 +69,8 @@ void Main::onMqttConnection(bool connected, int res)
         ESP_LOGI(TAG, "MQTT Connected. Session present: %d", res);
         _mqtt->subscribeTopic(CONFIG_TOPIC_BASE "setpoint/set" , 2);
         _mqtt->subscribeTopic(CONFIG_TOPIC_BASE "mode/set" , 2);
+        _mqtt->subscribeTopic(CONFIG_TOPIC_BASE "dhw_setpoint/set" , 2);
+        _mqtt->subscribeTopic(CONFIG_TOPIC_BASE "dhw_mode/set" , 2);
         
         // send config message
         // Construct std::string from the string_view
@@ -93,6 +95,10 @@ void Main::onMqttData(int msg_id, const std::string& topic, const std::string& d
         _daikin->setSetpointTemperature(std::stof(data)); 
     } else if (topic == (CONFIG_TOPIC_BASE "mode/set") ) {
         _daikin->setMode(data);
+    } else if (topic == (CONFIG_TOPIC_BASE "dhw_setpoint/set") ) {
+        _daikin->setDhwSetpointTemperature(std::stof(data));
+    } else if (topic == (CONFIG_TOPIC_BASE "dhw_mode/set") ) {
+         _daikin->setDhwMode(data);
     } else {
         ESP_LOGW(TAG, "MQTT Data received not catched. Message ID: %d, Topic: %s, Data: %s", 
                                                         msg_id, topic.c_str(), data.c_str());

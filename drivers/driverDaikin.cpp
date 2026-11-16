@@ -1,6 +1,9 @@
 
 #include <cstdio>
 #include <bit>
+#include <bitset>
+
+#include <format>
 
 #include "driverDaikin.h"
 #include "p1p2protocol.h"
@@ -75,7 +78,7 @@ const uint8_t DriverDaikin::CRC_TABLE[256] = {
     0x77, 0xa7, 0x64, 0xb4, 0x51, 0x81, 0x42, 0x92, 0x3b, 0xeb, 0x28, 0xf8,
     0x1d, 0xcd, 0x0e, 0xde};
 
-DriverDaikin::DriverDaikin(DeviceDatas* datas) : _pDatas(datas)
+DriverDaikin::DriverDaikin(DeviceDatas* datas, DriverHomebus* hbs) : _pDatas(datas), _hbs(hbs)
 {
     ESP_LOGI(TAG, "DriverDaikin::DriverDaikin() starting");
 }
@@ -84,8 +87,6 @@ DriverDaikin::~DriverDaikin()
 {
 
 }
-
-
 
 //static 
 uint8_t DriverDaikin::computeCRC(const std::vector<uint8_t>& data)
@@ -119,10 +120,38 @@ void DriverDaikin::printPacket(const std::vector<uint8_t>& data)
     ESP_LOGV(TAG, "%s", str);
 }
 
+// static, for debug
+std::string DriverDaikin::bytesToHex(const std::vector<uint8_t>& data)
+{
+    if (data.empty()) {
+        return "";
+    }
+
+    static constexpr char hex_chars[] = "0123456789abcdef";
+    
+    // Each byte takes 2 hex chars + 1 space, minus 1 trailing space
+    std::string result(data.size() * 3 - 1, ' ');
+
+    for (size_t i = 0; i < data.size(); ++i) {
+        result[i * 3]     = hex_chars[(data[i] >> 4) & 0x0F];
+        result[i * 3 + 1] = hex_chars[data[i] & 0x0F];
+    }
+
+    return result;
+}
+
+std::string DriverDaikin::byteToBinary(const std::vector<uint8_t>& data, size_t index)
+{
+    index += 3;
+    if (index >= data.size()) {
+        return ""; // Return empty string if index is out of bounds
+    }
+
+    return std::format("Byte {} : ", index - 3) + std::bitset<8>(data[index]).to_string();
+}
 
 
-
-
+// this method only route the data to the correct handler
 void DriverDaikin::onDataReceived(const std::vector<uint8_t>& buffer)
 {
     if (CONFIG_PRINT_DAIKIN_PACKETS)
@@ -130,7 +159,7 @@ void DriverDaikin::onDataReceived(const std::vector<uint8_t>& buffer)
 
     // Validate CRC
     uint8_t received_crc = buffer.back();
-    uint8_t calculated_crc = computeCRC( buffer);
+    uint8_t calculated_crc = computeCRC( buffer );
 
     if (received_crc != calculated_crc) {
         ESP_LOGE(TAG, "CRC error: received 0x%02X, calculated 0x%02X (len=%lu)",
@@ -144,13 +173,29 @@ void DriverDaikin::onDataReceived(const std::vector<uint8_t>& buffer)
     uint8_t address = buffer[1];
     uint8_t packetType = buffer[2];
 
-    // Handle temperature packets (from main controller, address 0x00)
-    if (address == Address::MAIN_CONTROLLER && packetType == PacketType::TEMPERATURES)
+    
+    if (address == Address::MAIN_CONTROLLER)
     {
         bool isResponse = (direction == Direction::RESPONSE);
-        onTemperaturePacketReceived(buffer, isResponse);
+
+        // Handle temperature packets (from main controller, address 0x00)
+        if(packetType == PacketType::TEMPERATURES)
+        {
+            onTemperaturePacketReceived(buffer, isResponse);
+            return;
+        }
+
+        // Handle control packets (from main controller, address 0x00)
+        if (packetType == PacketType::OPERATING_STATUS)
+        {
+            onOperatingPacketReceived(buffer, isResponse);
+            return;
+        }
+
+    } else if (address == Address::ESP32_CONTROLLER) {
+        onDedicatedPacketReceived(buffer);
         return;
-    }
+    }// (address == Address::MAIN_CONTROLLER)
 
 
 
@@ -194,7 +239,10 @@ void DriverDaikin::onOperatingPacketReceived(const std::vector<uint8_t>& buffer,
                         buffer.size(), (OperatingPacket::DHW_MODE  + 1));
             return;
         }
-       
+
+        _pDatas->setByKey(DataKey::debug, bytesToHex(buffer));
+
+       /*
         _pDatas->setByKey(DataKey::leavingTemperature, 
                         fixedPointToFloat(buffer, TemperaturePacket::LWT_TEMP_OFFSET));
         
@@ -209,7 +257,7 @@ void DriverDaikin::onOperatingPacketReceived(const std::vector<uint8_t>& buffer,
         
         _pDatas->setByKey(DataKey::roomTemperature, 
                         fixedPointToFloat(buffer, TemperaturePacket::ROOM_TEMP_OFFSET));
-
+*/
 
     } else { // Request packet 00 00 10
         if (buffer.size() < (TemperaturePacket::REQ_ROOM_TEMP_OFFSET + 2)){
@@ -217,8 +265,10 @@ void DriverDaikin::onOperatingPacketReceived(const std::vector<uint8_t>& buffer,
                         buffer.size(), (TemperaturePacket::REQ_ROOM_TEMP_OFFSET + 2));
             return;
         }
-        _pDatas->setByKey(DataKey::roomTemperature, 
-                        fixedPointToFloat(buffer, TemperaturePacket::REQ_ROOM_TEMP_OFFSET));
+
+        _pDatas->setByKey(DataKey::debug, byteToBinary(buffer, 1));
+        //_pDatas->setByKey(DataKey::roomTemperature, 
+        //                fixedPointToFloat(buffer, TemperaturePacket::REQ_ROOM_TEMP_OFFSET));
     }
 }
 
@@ -261,16 +311,58 @@ void DriverDaikin::onTemperaturePacketReceived(const std::vector<uint8_t>& buffe
     }
 }
 
+// Packet dedicated to our device
+void DriverDaikin::onDedicatedPacketReceived(const std::vector<uint8_t>& buffer)
+{
+    uint8_t packetType = buffer[2];
+    switch (packetType) {
+        case PacketType::POLL_AUX:
+            ESP_LOGV(TAG, "Poll auxiliary controller");
+            //sendAcknowledge(PacketType::POLL_AUX);
+            break;
+
+        case PacketType::OPERATION_CONTROL:
+            ESP_LOGV(TAG, "OPERATION_CONTROL");
+            //self->handle_control_packet(payload);
+            break;
+
+        default:
+            ESP_LOGW(TAG, "Message sent to our device type %d - not registered", packetType);
+    }
+        
+
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+///                                 Communication to Daikin                                             //
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+void DriverDaikin::sendAcknowledge(uint8_t packetType)
+{
+    std::vector<uint8_t> res = {Direction::RESPONSE, Address::ESP32_CONTROLLER, packetType, 0xFF};
+    uint8_t crc = computeCRC( res );
+    res.back() = crc;
+    _hbs->sendBytes( res );
+}
+
+void DriverDaikin::sendResponse(uint8_t packetType, const std::vector<uint8_t>& datas)
+{
+    std::vector<uint8_t> res;
+    res.reserve(3 + datas.size() +1 );
+    std::vector<uint8_t> header =  { Direction::RESPONSE, Address::ESP32_CONTROLLER, packetType };
+    res.insert(res.end(), header.begin(), header.end());
+    res.insert(res.end(), datas.begin(), datas.end());
+    res.push_back(0xFF);
+
+    uint8_t crc = computeCRC( res );
+    res.back() = crc;
+    _hbs->sendBytes( res );
+
+}
 
 
-
-
-
-
-
-
-
-///////////////////// Setters
+///////////////////// Setters  /////////////////////
+// TODEL the implementation should send to the device only 
+// feedback on variables is done by the device itself, not by members 
 
 void DriverDaikin::setSetpointTemperature(float temp)
 {
@@ -281,6 +373,22 @@ void DriverDaikin::setSetpointTemperature(float temp)
 void DriverDaikin::setMode(const std::string& mode)
 {
     ESP_LOGD(TAG, "Turning Heat Pump Mode to %s", mode.c_str());
+    if (mode == "heat"){
+        _mode = true;
+    } else if (mode == "off") {
+        _mode = false;
+    }   
+}
+
+void DriverDaikin::setDhwSetpointTemperature(float temp)
+{
+    ESP_LOGD(TAG, "DHW Setpoint temperature: %f", temp);
+    _setpointTemperature = temp ;
+}
+
+void DriverDaikin::setDhwMode(const std::string& mode)
+{
+    ESP_LOGD(TAG, "Turning DHW Mode to %s", mode.c_str());
     if (mode == "heat"){
         _mode = true;
     } else if (mode == "off") {

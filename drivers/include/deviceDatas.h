@@ -23,6 +23,7 @@ enum class DataKey : size_t {
     dhwCurrentTemperature,
     dhwSetpointTmperature,
     errorCode,
+    debug,
     Count // Automatically tracks total number of keys
 };
 
@@ -76,6 +77,7 @@ public:
     Data<float>         dhwCurrentTemperature   {"dhw_current/temperature"};        // Empty, minDelta = 0.5f
     Data<float>         dhwSetpointTmperature   {"dhw_setpoint/state", 0, 0, 0};   // Empty, minDelta = 0.5f
     Data<int>           errorCode           {"error/code"};   // error code is 3 bytes
+    Data<std::string>   debug               {"debug/string", 0, 0, 0};     // TODEL
     
     // O(1) Direct-indexed array (order must match DataKey enum)
     static constexpr size_t kCount = static_cast<size_t>(DataKey::Count);
@@ -92,7 +94,8 @@ public:
         &operationMode,
         &dhwCurrentTemperature,
         &dhwSetpointTmperature,
-        &errorCode
+        &errorCode,
+        &debug
     }};
 
 private:
