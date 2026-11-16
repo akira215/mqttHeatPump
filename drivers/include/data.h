@@ -26,6 +26,8 @@ public:
     virtual bool isReportable() = 0;
     virtual std::string getValue(const std::string& emptyFallback = "") = 0;
     virtual std::string getTopic() const = 0;
+    virtual int getQos() const = 0;
+    virtual int getRetain() const = 0;
 
     // Direct value population via base pointer (returns true if updated)
     virtual void setValue(const int& v) { }
@@ -47,21 +49,27 @@ private:
     T           _value {};
     bool        _isEmpty = true;
     std::string _mqttTopic;               // Set at compile time
+    int         _qos;
+    int         _retain;
     int16_t     _minReportingInterval;   // Set at compile time
     int16_t     _maxReportingInterval;   // Set at compile time
     float       _reportableChange;       // Set at compile time
     bool        _reportable = false;
     int64_t     _lastReportTime = 0;
-
+    
 public:
     using IData::setValue;
 
-    explicit Data(const std::string& mqttTopic, int16_t minInterval = 2, int16_t maxInterval = 3600, float delta = 1.0f) 
-        : _mqttTopic(mqttTopic), _minReportingInterval(minInterval),  _maxReportingInterval(maxInterval),
-        _reportableChange(delta), _lastReportTime (0) { }
+    explicit Data(const std::string& mqttTopic, int qos = 0, int retain = 0, 
+                            int16_t minInterval = 2, int16_t maxInterval = 3600, float delta = 1.0f) 
+        : _mqttTopic(mqttTopic), _qos(qos), _retain(retain), _minReportingInterval(minInterval), 
+          _maxReportingInterval(maxInterval), _reportableChange(delta), _lastReportTime (0) { }
     //Data(const T& v) : value(v) {}
 
     std::string getTopic() const { return _mqttTopic; }
+    int getQos() const { return _qos; }
+    int getRetain() const { return _retain; }
+    
 
     void clear() {
         _value = T{};

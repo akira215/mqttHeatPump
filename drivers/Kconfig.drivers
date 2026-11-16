@@ -1,3 +1,14 @@
+menu "Daikin driver configuration"
+
+    config PRINT_DAIKIN_PACKETS
+        bool "Print the raw packets on stdout"
+        default y
+        help
+            This will help to debug to adjust P1P2 protocol in case of inconsistency
+
+
+endmenu
+
 menu "GPIO Pins layout"
     config MB_UART_PORT_NUM
         int "UART port number"

@@ -1,7 +1,9 @@
 
 #include <cstdio>
+#include <bit>
 
 #include "driverDaikin.h"
+#include "p1p2protocol.h"
 
 #include "esp_random.h" //todel
 
@@ -118,51 +120,13 @@ void DriverDaikin::printPacket(const std::vector<uint8_t>& data)
 }
 
 
-// Static
-void DriverDaikin::printDashboard()
-{
-    // Move cursor to top-left corner without clearing
-    printf("\e[H");
-    /*
 
-    // Draw the static interface layout
-    printf("-------------------------------------------------------------------------\n");
-    printf("|                          AHD20 Controller Table                       |\n");
-    printf("-------------------------------------------------------------------------\n");
-    
-    // Print dynamic data in fixed rows
-    printf("|    Slave ID  0x%02X     |    Num of frames " RED "%*ld" RESET "   |    Function 0x%02X   |\n", 
-                            _slaveId, 5, _nFrame, _function);
-    printf("| Address requested by slave  0x%04X   |   Number of registers 0x%04X   |\n",
-        _writeAdd, _nWrite);
-    printf("-------------------------------------------------------------------------\n");
-    printf("| Last Error: "RED"%*s"RESET"|\n", 58, _lastErr.c_str());
-    
-    _registerMap.lock();
-    for (uint8_t i = 0; i <  _registerMap.size(); ++i) {
-        if ((i >0 )&&(i % DISPLAY_N_PER_LINE == 0)) // Go to new line if i is multiple of num per line
-            printf("|\n");
-        auto data = _registerMap.at(i);
-        printf("| 0x%04X : ", data.address);
-        
-        if(data.updated)
-            printf(RED);
-        
-        printf("%*d ", 6, data.value);
-
-        if(data.updated)
-            printf(RESET);
-        
-    }
-    _registerMap.unlock();
-    */
-
-}
 
 
 void DriverDaikin::onDataReceived(const std::vector<uint8_t>& buffer)
 {
-    printPacket(buffer);
+    if (CONFIG_PRINT_DAIKIN_PACKETS)
+        printPacket(buffer);
 
     // Validate CRC
     uint8_t received_crc = buffer.back();
@@ -175,9 +139,27 @@ void DriverDaikin::onDataReceived(const std::vector<uint8_t>& buffer)
         return;
     }
 
+    // The 3 firts bytes are the header 
+    uint8_t direction = buffer[0];
+    uint8_t address = buffer[1];
+    uint8_t packetType = buffer[2];
+
+    // Handle temperature packets (from main controller, address 0x00)
+    if (address == Address::MAIN_CONTROLLER && packetType == PacketType::TEMPERATURES)
+    {
+        bool isResponse = (direction == Direction::RESPONSE);
+        onTemperaturePacketReceived(buffer, isResponse);
+        return;
+    }
+
+
+
+
+
+
     // Logic start Here
-    float fVal = random_float_range(-2.0f, 40.0f);
-    _pDatas->setByKey(DataKey::roomTemperature, fVal);
+    //float fVal = random_float_range(-2.0f, 40.0f);
+    //_pDatas->setByKey(DataKey::roomTemperature, fVal);
 
     _pDatas->setByKey(DataKey::setpointTemperature, _setpointTemperature);
 
@@ -200,6 +182,93 @@ void DriverDaikin::onDataReceived(const std::vector<uint8_t>& buffer)
     }
     
 }
+
+// Packet type 10
+void DriverDaikin::onOperatingPacketReceived(const std::vector<uint8_t>& buffer, bool isResponse)
+{
+    
+    if (isResponse) // Response packet 40 00 10
+    {
+         if (buffer.size() < (OperatingPacket::DHW_MODE  + 1)){
+            ESP_LOGW(TAG, "Request Packet type 10 length is %d < required %d. All packet is ignored", 
+                        buffer.size(), (OperatingPacket::DHW_MODE  + 1));
+            return;
+        }
+       
+        _pDatas->setByKey(DataKey::leavingTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::LWT_TEMP_OFFSET));
+        
+        _pDatas->setByKey(DataKey::dhwCurrentTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::DWT_TEMP_OFFSET));
+        
+        _pDatas->setByKey(DataKey::outdoorTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::OUTDOOR_TEMP_OFFSET));
+        
+        _pDatas->setByKey(DataKey::returnTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::RWT_TEMP_OFFSET));
+        
+        _pDatas->setByKey(DataKey::roomTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::ROOM_TEMP_OFFSET));
+
+
+    } else { // Request packet 00 00 10
+        if (buffer.size() < (TemperaturePacket::REQ_ROOM_TEMP_OFFSET + 2)){
+            ESP_LOGW(TAG, "Request Packet type 11 length is %d < required %d. All packet is ignored", 
+                        buffer.size(), (TemperaturePacket::REQ_ROOM_TEMP_OFFSET + 2));
+            return;
+        }
+        _pDatas->setByKey(DataKey::roomTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::REQ_ROOM_TEMP_OFFSET));
+    }
+}
+
+// Packet type 11
+void DriverDaikin::onTemperaturePacketReceived(const std::vector<uint8_t>& buffer, bool isResponse)
+{
+    
+    if (isResponse) // Response packet 40 00 11
+    {
+         if (buffer.size() < (TemperaturePacket::ROOM_TEMP_OFFSET  + 2)){
+            ESP_LOGW(TAG, "Request Packet type 11 length is %d < required %d. All packet is ignored", 
+                        buffer.size(), (TemperaturePacket::REQ_ROOM_TEMP_OFFSET + 2));
+            return;
+        }
+       
+        _pDatas->setByKey(DataKey::leavingTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::LWT_TEMP_OFFSET));
+        
+        _pDatas->setByKey(DataKey::dhwCurrentTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::DWT_TEMP_OFFSET));
+        
+        _pDatas->setByKey(DataKey::outdoorTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::OUTDOOR_TEMP_OFFSET));
+        
+        _pDatas->setByKey(DataKey::returnTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::RWT_TEMP_OFFSET));
+        
+        _pDatas->setByKey(DataKey::roomTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::ROOM_TEMP_OFFSET));
+
+
+    } else { // Request packet 00 00 11
+        if (buffer.size() < (TemperaturePacket::REQ_ROOM_TEMP_OFFSET + 2)){
+            ESP_LOGW(TAG, "Request Packet type 11 length is %d < required %d. All packet is ignored", 
+                        buffer.size(), (TemperaturePacket::REQ_ROOM_TEMP_OFFSET + 2));
+            return;
+        }
+        _pDatas->setByKey(DataKey::roomTemperature, 
+                        fixedPointToFloat(buffer, TemperaturePacket::REQ_ROOM_TEMP_OFFSET));
+    }
+}
+
+
+
+
+
+
+
+
+
 
 ///////////////////// Setters
 

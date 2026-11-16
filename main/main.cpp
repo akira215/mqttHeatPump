@@ -75,7 +75,7 @@ void Main::onMqttConnection(bool connected, int res)
         std::string jsonData(JSON_DEVICE_CONFIG);
 
         ESP_LOGI(TAG, "Sending %zu bytes of JSON", jsonData.size());
-        _mqtt->sendData("homeassistant/device/HeatPump/config",jsonData,1,1); // retain
+        _mqtt->sendData("homeassistant/device/HeatPump/config", jsonData, 1, 1); // retain
 
     } else {
         ESP_LOGW(TAG, "MQTT Disconnected. Error type: %d", res);
@@ -94,7 +94,8 @@ void Main::onMqttData(int msg_id, const std::string& topic, const std::string& d
     } else if (topic == (CONFIG_TOPIC_BASE "mode/set") ) {
         _daikin->setMode(data);
     } else {
-        ESP_LOGW(TAG, "MQTT Data received not catched. Message ID: %d, Topic: %s, Data: %s", msg_id, topic.c_str(), data.c_str());
+        ESP_LOGW(TAG, "MQTT Data received not catched. Message ID: %d, Topic: %s, Data: %s", 
+                                                        msg_id, topic.c_str(), data.c_str());
     }
         
 }
@@ -112,13 +113,15 @@ void Main::run(void)
     _deviceDatas.forEach([&](DataKey key, IData& item) {
         if (item.isReportable()) {
             //ESP_LOGW("datas", "Key %zu is reportable", static_cast<size_t>(key));
-            _messages[count++] = {item.getTopic(), item.getValue()};
+            _messages[count++] = {item.getTopic(), item.getValue(), 
+                                                item.getQos(), item.getRetain()};
         } 
     });
 
     // Send all data to mqtt
     for (size_t i = 0; i < count; ++i) {
-        _mqtt->sendData(std::string(CONFIG_TOPIC_BASE) + _messages[i].topic, _messages[i].payload);
+        _mqtt->sendData(std::string(CONFIG_TOPIC_BASE) + _messages[i].topic, 
+                    _messages[i].payload, _messages[i].qos, _messages[i].retain);
     }
 
     vTaskDelay(pdMS_TO_TICKS(2000)); // let time to reset watchdog

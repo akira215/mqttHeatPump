@@ -16,9 +16,13 @@ enum class DataKey : size_t {
     waterPressure,
     leavingTemperature,
     outdoorTemperature,
+    returnTemperature,
     flowrate,
     backupHeater,
     operationMode,
+    dhwCurrentTemperature,
+    dhwSetpointTmperature,
+    errorCode,
     Count // Automatically tracks total number of keys
 };
 
@@ -58,15 +62,20 @@ public:
 
     //  Concrete compile-time locked members (no heap allocation)
     // this should be aligned with the config definition of config_json.h
-    Data<float>         roomTemperature     {"room/temperature"};       // Empty, minDelta = 0.5f
-    Data<float>         setpointTemperature {"setpoint/state", 0};      // Empty, minDelta = 0.5f
-    Data<std::string>   heatPumpMode        {"mode/state", 0};              // Empty, minDelta = 0.0f
-    Data<float>         waterPressure       {"pressure/state"};         // Empty, minDelta = 0.5f
+    // {std::string mqttTopic, int qos , int retain, int16_t minInterval, int16_t maxInterval , float delta }
+    Data<float>         roomTemperature     {"room/temperature",};       // Empty, minDelta = 0.5f
+    Data<float>         setpointTemperature {"setpoint/state", 0, 0, 0};      // Empty, minDelta = 0.5f
+    Data<std::string>   heatPumpMode        {"mode/state", 0, 0, 0};             // Empty, minDelta = 0.0f
+    Data<float>         waterPressure       {"pressure/state"};             // Empty, minDelta = 0.5f
     Data<float>         leavingTemperature  {"leavingwater/temperature"};   // Empty, minDelta = 0.5f
-    Data<float>         outdoorTemperature  {"outdoor/temperature"};    // Empty, minDelta = 0.5f
-    Data<float>         flowrate            {"flowrate/flow"};          // Empty, minDelta = 0.5f
-    Data<std::string>   backupHeater        {"backup_heater/level", 0};    // Empty, minDelta = 2.0f
-    Data<std::string>   operationMode       {"operation/mode", 0};         // frost oil return 
+    Data<float>         outdoorTemperature  {"outdoor/temperature"};        // Empty, minDelta = 0.5f
+    Data<float>         returnTemperature   {"returnwater/temperature"};    // Empty, minDelta = 0.5f
+    Data<float>         flowrate            {"flowrate/flow"};              // Empty, minDelta = 0.5f
+    Data<std::string>   backupHeater        {"backup_heater/level", 0, 0, 0};// Empty, minDelta = 2.0f
+    Data<std::string>   operationMode       {"operation/mode", 0, 0, 0};     // frost oil return 
+    Data<float>         dhwCurrentTemperature   {"dhw_current/temperature"};        // Empty, minDelta = 0.5f
+    Data<float>         dhwSetpointTmperature   {"dhw_setpoint/state", 0, 0, 0};   // Empty, minDelta = 0.5f
+    Data<int>           errorCode           {"error/code"};   // error code is 3 bytes
     
     // O(1) Direct-indexed array (order must match DataKey enum)
     static constexpr size_t kCount = static_cast<size_t>(DataKey::Count);
@@ -77,9 +86,13 @@ public:
         &waterPressure,
         &leavingTemperature,
         &outdoorTemperature,
+        &returnTemperature,
         &flowrate, 
         &backupHeater,
-        &operationMode
+        &operationMode,
+        &dhwCurrentTemperature,
+        &dhwSetpointTmperature,
+        &errorCode
     }};
 
 private:

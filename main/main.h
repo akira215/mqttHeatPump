@@ -35,6 +35,8 @@ private:
     struct MqttMessage {
         std::string topic;
         std::string payload;
+        int qos = 0;
+        int retain = 0;
     }; // to send message to mqtt broker
     
     std::array<MqttMessage, DeviceDatas::kCount> _messages {};

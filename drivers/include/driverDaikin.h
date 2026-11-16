@@ -28,5 +28,9 @@ public:
 private:
     static void printPacket(const std::vector<uint8_t>& data);
     static uint8_t computeCRC(const std::vector<uint8_t>& data);
+
+    void onOperatingPacketReceived(const std::vector<uint8_t>& buffer, bool isResponse);
+    void onTemperaturePacketReceived(const std::vector<uint8_t>& buffer, bool isResponse);
+    
     static void printDashboard();
 };
