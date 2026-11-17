@@ -277,7 +277,7 @@ void DriverHomebus::start()
     // Clear screen and home cursor once at startup
     //printf("\e[2J\e[H");
 
-    xTaskCreate(DriverHomebus::rxTask, "HbsRxTask", 4096, this, 5, &rxTaskHandle);
+    xTaskCreate(DriverHomebus::rxTask, "HbsRxTask", 4096, this, 5, &_rxTaskHandle);
     ESP_LOGI(TAG, "Rx started");
 }
 
@@ -285,9 +285,9 @@ void DriverHomebus::stop()
 {
    
     // Delete the task using its handle
-    if (rxTaskHandle != nullptr) {
-        vTaskDelete(rxTaskHandle);
-        rxTaskHandle = nullptr; // Prevent using an invalid handle
+    if (_rxTaskHandle != nullptr) {
+        vTaskDelete(_rxTaskHandle);
+        _rxTaskHandle = nullptr; // Prevent using an invalid handle
     }
 
      // Set RST pin to high
@@ -323,7 +323,7 @@ void DriverHomebus::rxTask(void *pvParameters)
 
                 // Filter for potential noise/invalid packets. We need at least the header present
                 if (data.size() >= 3) {
-                    printPacket(data);
+                    // printPacket(data);
                     
                     // Pass buffer up stack
                     if (instance->_callback) {

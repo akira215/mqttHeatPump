@@ -104,7 +104,7 @@ class DriverHomebus final
 
     rmt_receive_config_t    _rxCfg {};
     
-    TaskHandle_t            rxTaskHandle = nullptr;
+    TaskHandle_t            _rxTaskHandle = nullptr;
     static std::function<void(const std::vector<uint8_t>&)> _callback; // Callback function for received data
 
 public:

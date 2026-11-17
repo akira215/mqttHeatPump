@@ -8,6 +8,8 @@
 #include "driverHomebus.h"
 #include "driverDaikin.h"
 
+#include "driverAhd.h"
+
 
 // Main class used for testing only
 class Main final
@@ -29,6 +31,11 @@ private:
     Thread*         _thread = nullptr;
     DriverHomebus*  _hbs    = nullptr;
     DriverDaikin*   _daikin = nullptr;
+
+    DriverAhd*      _ahd = nullptr;
+
+    //uint8_t buffer[UART0_BUFFER_SIZE];
+
 
     static DeviceDatas _deviceDatas;  // data structure for all the device datas
 

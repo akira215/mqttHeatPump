@@ -38,6 +38,10 @@ void Main::setup(void)
 
     _hbs->start();
 
+    // Setup AHD communication 
+    _ahd = new DriverAhd();
+    _ahd->start();
+
 }
 
 void  Main::threadEvent(esp_openthread_event_t event_id)
