@@ -1,3 +1,15 @@
+/*
+  diverDaikin
+  Repository: https://github.com/akira215/esp-ash-components
+  License: GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+  Author: Akira Shimahara
+
+  This class decode the data coming from homebus and populate the application data structure (DeviceData)
+
+  The constructor shall be called with a pointer to the application data structure (DeviceData)
+  and a pointer to the homebus object to sendbyte
+*/
+
 
 #include <cstdio>
 #include <bit>

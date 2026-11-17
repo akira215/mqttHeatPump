@@ -1,6 +1,21 @@
+/*
+  diverHomebus
+  Repository: https://github.com/akira215/esp-ash-components
+  License: GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+  Author: Akira Shimahara
+  
+  This class decode Homebus data using RMT. Needs to configure 3 pins:
+   - CONFIG_HBS_TX
+   - CONFIG_HBS_RX
+   - CONFIG_HBS_RST
+  Application need to register a callback that using registerCallback(&Main::callback, this)
+  The callback signature should be void (const std::vector<uint8_t>&)
+  Bytes are send using sendBytes(const std::vector<uint8_t>&)
+*/
+
 #pragma once
 
-#include "registerMap.h"
+#include "freertos/FreeRTOS.h"
 
 #include <functional>
 #include <vector>
@@ -10,17 +25,8 @@
 #include "driver/rmt_tx.h"
 #include "driver/rmt_rx.h"
 
-//#define HBS_TX_GPIO          5
-//#define HBS_RX_GPIO          4
-//#define HBS_RST              2
-
-#define HBS_TX_GPIO          GPIO_NUM_16
-#define HBS_RX_GPIO          GPIO_NUM_19
-#define HBS_RST              2
-
 #define HBS_BIT_US          104   // Total bit time at ~9600 bps
 #define HBS_PULSE_US         52   // Active half-bit pulse time
-
 
 // RMT resolution for homebus, in Hz
 static constexpr uint32_t HOMEBUS_RMT_RESOLUTION_HZ = 4000000UL;
@@ -39,9 +45,6 @@ static constexpr size_t DECODE_BUFFER_SIZE = 32;
 
 #define REGISTER_MAP_SIZE 100 // 100 uint16 register address could be stored to increase in case of more
 
-//#define RED   "\x1b[31m"
-//#define GREEN "\x1b[32m"
-//#define RESET "\x1b[0m"
 
 /*
 
@@ -86,18 +89,10 @@ class DriverHomebus final
        .level1      = 1
     }; // repos continu
 
-    
-    //AHD is kind of Modbus Ascii, frame shall be converted to ASCII first
-    std::vector<char>    _data;  // The raw data as read on UART
-    std::vector<uint8_t> _bytes; // Data which is interpretation of the Ascii from Raw
-
-    RegisterMap         _registerMap;
-
-
     rmt_channel_handle_t    _tx {nullptr};
     rmt_channel_handle_t    _rx {nullptr};
     rmt_encoder_handle_t    _txEncoder {nullptr};
-    gpio_num_t              _enable {static_cast<gpio_num_t>(HBS_RST)};
+    gpio_num_t              _enable {static_cast<gpio_num_t>(CONFIG_HBS_RST)};
 
     rmt_symbol_word_t*      _rxBuffers[2];   // Double buffer for pingpong operation
     uint32_t                _rxBufferSize;
@@ -137,7 +132,7 @@ private:
                                 void *user_data);
 
     static std::vector<uint8_t> decodeRmtData(rmt_symbol_word_t *symbols, size_t num_symbols);
-    static void printPacket(const std::vector<uint8_t>& data);
+    static void printPacket(const std::vector<uint8_t>& data); // For debugging
 
     static void rxTask(void *pvParameters);
 

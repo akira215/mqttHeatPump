@@ -1,3 +1,18 @@
+/*
+  DeviceDatas
+  Repository: https://github.com/akira215/esp-ash-components
+  License: GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+  Author: Akira Shimahara
+
+  This class is application data structure. basically it is an array of 
+  Values that are predermined at compile time, each driver should 
+  populate it's own value, and the main loop should check and send
+  all the reportable values. Thread safe, some method are here for convenience 
+  to avoid locking single objects.
+
+*/
+
+
 #pragma once
 
 

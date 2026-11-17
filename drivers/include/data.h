@@ -1,3 +1,16 @@
+/*
+  data
+  Repository: https://github.com/akira215/esp-ash-components
+  License: GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+  Author: Akira Shimahara
+
+  This class is the atomic object to store value. 
+  The object itself as min and max reportable intervale and reportable
+  change, and keeping a timer, it knows when it should be reported (isReportable())
+
+  The Interface class is here for conveninence.
+*/
+
 
 #pragma once
 

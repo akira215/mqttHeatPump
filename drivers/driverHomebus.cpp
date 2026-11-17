@@ -1,3 +1,17 @@
+/*
+  diverHomebus
+  Repository: https://github.com/akira215/esp-ash-components
+  License: GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+  Author: Akira Shimahara
+  
+  This class decode Homebus data using RMT. Needs to configure 3 pins:
+   - CONFIG_HBS_TX
+   - CONFIG_HBS_RX
+   - CONFIG_HBS_RST
+  Application need to register a callback that using registerCallback(&Main::callback, this)
+  The callback signature should be void (const std::vector<uint8_t>&)
+  Bytes are send using sendBytes(const std::vector<uint8_t>&)
+*/
 
 #include <esp_log.h>
 
@@ -57,7 +71,7 @@ DriverHomebus::DriverHomebus()
     
     // Initialize RMT TX Channel for sending P1/P2 frames
     rmt_tx_channel_config_t tx_config{};
-    tx_config.gpio_num =  static_cast<gpio_num_t>(HBS_TX_GPIO);
+    tx_config.gpio_num =  static_cast<gpio_num_t>(CONFIG_HBS_TX);
     tx_config.clk_src = RMT_CLK_SRC_DEFAULT;
     tx_config.resolution_hz = HOMEBUS_RMT_RESOLUTION_HZ;
     tx_config.mem_block_symbols = 64;
@@ -83,7 +97,7 @@ DriverHomebus::DriverHomebus()
 
     // Initialize RMT RX Channel for decoding incoming P1/P2 waveforms
     rmt_rx_channel_config_t rx_config{};
-    rx_config.gpio_num = static_cast<gpio_num_t>(HBS_RX_GPIO);
+    rx_config.gpio_num = static_cast<gpio_num_t>(CONFIG_HBS_RX);
     rx_config.clk_src = RMT_CLK_SRC_DEFAULT;
     rx_config.resolution_hz = HOMEBUS_RMT_RESOLUTION_HZ;  
     rx_config.mem_block_symbols = 64;
@@ -150,9 +164,6 @@ DriverHomebus::DriverHomebus()
 
 
     ESP_LOGI(TAG, "Tx and Rx RMT initialized");
-
-    //Reserve to avoid heap allocation
-    _registerMap.reserve(REGISTER_MAP_SIZE);
 
 }
 
@@ -325,6 +336,8 @@ void DriverHomebus::rxTask(void *pvParameters)
         //vTaskDelay(pdMS_TO_TICKS(10));
         vTaskDelay(pdMS_TO_TICKS(100));
     }
+
+    // Should never reach
     vTaskDelete(NULL);
 }
 

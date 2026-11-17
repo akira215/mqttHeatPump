@@ -1,3 +1,13 @@
+/*
+  p1p2protovol
+  Repository: https://github.com/akira215/esp-ash-components
+  License: GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+  Author: Akira Shimahara
+
+  This file gather the definition of the p1p2 protocol for Daikin heat pump
+*/
+
+
 #pragma once
 
 #include <stdint.h>

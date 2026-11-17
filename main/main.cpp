@@ -32,7 +32,7 @@ void Main::setup(void)
 
     // HBS communication
     _hbs = new DriverHomebus();
-    _daikin = new DriverDaikin(&_deviceDatas);
+    _daikin = new DriverDaikin(&_deviceDatas, _hbs);
 
     _hbs->registerCallback(&DriverDaikin::onDataReceived, _daikin);
 
