@@ -14,9 +14,12 @@
 #include "driverAhd.h"
 
 static const char *TAG = "DriverAhd";
+QueueHandle_t DriverAhd::uart_event_queue = nullptr;
 
-DriverAhd::DriverAhd()
+DriverAhd::DriverAhd() : _data(UART1_BUFFER_SIZE)
 {
+    _bytes.reserve(UART1_BUFFER_SIZE/2);
+
     uart_config_t uart_config = {};
     uart_config.baud_rate = UART1_BAUD_RATE;
     uart_config.data_bits = UART_DATA_8_BITS;
@@ -26,10 +29,14 @@ DriverAhd::DriverAhd()
     uart_config.rx_flow_ctrl_thresh = 122;
     uart_config.source_clk = UART_SCLK_DEFAULT;  // Use APB clock for ESP32-C6
 
-    uart_driver_install(UART1_NUM, UART1_BUFFER_SIZE, UART1_BUFFER_SIZE, 0, NULL, 0);
-    uart_param_config(UART1_NUM, &uart_config);
-    uart_set_pin(UART1_NUM, UART1_TX_PIN, UART1_RX_PIN, 
-                        UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    ESP_ERROR_CHECK(uart_driver_install(UART1_NUM, UART1_BUFFER_SIZE, 0, 
+                QUEUE_SIZE ,&DriverAhd::uart_event_queue, 0));
+    ESP_ERROR_CHECK(uart_param_config(UART1_NUM, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(UART1_NUM, UART1_TX_PIN, UART1_RX_PIN, 
+                        UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    
+    // Optional: Tune idle timeout (in symbol lengths) to detect end-of-packet faster
+    uart_set_rx_timeout(UART1_NUM, 3);
 
     ESP_LOGI(TAG, "UART1 initialized at %d baud", UART1_BAUD_RATE);
 
@@ -45,10 +52,8 @@ DriverAhd::~DriverAhd()
 
 void DriverAhd::start()
 {
-    xTaskCreate(DriverAhd::uartRxTask, "DriverAhd_Task", 4096, this, 5, &_rxTaskHandle);
-    //ESP_LOGI(TAG, "UART1 initialized at %d baud", UART1_BAUD_RATE);
-    //xTaskCreate(DriverAhd::displayTask, "Display_Task", 4096, this, 2, NULL);
-    // Clear screen and home cursor once at startup
+    xTaskCreate(DriverAhd::uartRxTask, "DriverAhd_Task", 3072, this, 5, &_rxTaskHandle);
+   
     printf("\e[2J\e[H");
 }
 
@@ -63,103 +68,147 @@ void DriverAhd::stop()
     ESP_LOGI(TAG, "Rx stopped");
 }
 
+void DriverAhd::sentBytes(const std::vector<uint8_t>& bytes) 
+{
+    uint8_t chk = checkSum(bytes);
+    std::vector<char> toSend;
+    toSend.reserve(1 + (bytes.size() * 2) + 4); // 1 start byte 2 checksum 2 stops
+    ESP_LOGI(TAG, "Reserve %d - chksum %d", 1 + (bytes.size() * 2) + 4, chk);
+    //ESP_LOG_BUFFER_HEX(TAG, chk, 1 );
+
+    toSend.push_back(START_BYTE);
+
+    for (uint8_t byte : bytes) {
+
+        char high_char = val_to_hex(byte >> 4);   // Upper 4 bits
+        char low_char  = val_to_hex(byte & 0x0F); // Lower 4 bits
+
+        toSend.push_back(high_char);
+        toSend.push_back(low_char);
+    }
+
+    char high_chk = val_to_hex(chk >> 4);   // Upper 4 bits
+    char low_chk  = val_to_hex(chk & 0x0F); // Lower 4 bits
+
+    toSend.push_back(high_chk);
+    toSend.push_back(low_chk);
+
+    toSend.push_back(STOP_BYTE2);
+    toSend.push_back(STOP_BYTE1);
+
+    //printRawFrame(toSend, toSend.size());
+
+
+    int bytesSent = uart_write_bytes(UART1_NUM, toSend.data(), toSend.size());
+    
+    if (bytesSent < toSend.size()) {
+        ESP_LOGE(TAG, "UART TX error");
+    } else {
+        ESP_LOGV(TAG, "Sent line packet: %d raw bytes", bytesSent);
+    }
+    
+}
+
+
 //Static
 void DriverAhd::uartRxTask(void *pvParameters)
 {
     DriverAhd* instance = static_cast<DriverAhd*>(pvParameters);
-    
-    uint8_t *rxBuffer = (uint8_t *) malloc(UART1_BUFFER_SIZE);
-    if (rxBuffer == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate memory for RX buffer");
-        vTaskDelete(NULL);
-        return;
-    }
 
     ESP_LOGI(TAG, "UART1 RX Task started. Listening on GPIO %d...", UART1_RX_PIN);
 
-    int rxId = 0;
-
+    uart_event_t event;
     while (1) {
-         
-        // Read raw data fragments from UART
-        int len = uart_read_bytes(UART1_NUM, rxBuffer,
-                                sizeof(rxBuffer), pdMS_TO_TICKS(10));
+        
+        // Sleep completely (0% CPU) until the UART hardware sends an event
+        if (xQueueReceive(uart_event_queue, (void *)&event, portMAX_DELAY)) {
+            
+            switch (event.type) {
+                case UART_DATA:
+                {
+                    // 'event.size' tells you the exact number of bytes waiting
+                    // Guard against event.size exceeding our pre-allocated buffer capacity
+                    size_t bytesToRead = std::min(event.size, instance->_data.size());
+                    ESP_LOGI(TAG, "bytesToRead %d bytes",  bytesToRead);
 
-        for (int i = 0; i < len; i++) {
-            uint8_t curByte = rxBuffer[i];
+                    int len = uart_read_bytes(UART1_NUM, instance->_data.data(), bytesToRead, portMAX_DELAY);
+                   
+                    if (len > 0) {
+                        // warning _data is never resized
+                        //ESP_LOGI(TAG, "Received %d bytes, 1st is 0x%02X", len, static_cast<unsigned int>(
+                        //                                    static_cast<unsigned char>(instance->_data[0])));
 
-            //ESP_LOGI(TAG, "position [%d] - current byte: %u", i, curByte);
+                        if (instance->_data[0] == START_BYTE 
+                                && instance->_data[len - 2] == STOP_BYTE2 
+                                && instance->_data[len - 1] == STOP_BYTE1) {
+                            ESP_LOGI(TAG, "Start and stops bytes Ok");
+                            instance->processFrame(len);
 
-            // 1. Detect start byte: Reset buffer to start a fresh frame
-            if (curByte == START_BYTE) {
-                rxId = 0; 
-                instance->_data.clear();
+                        }
 
-            }
-
-            // 2. Append byte if we have room
-            instance->_data.push_back(static_cast<char>(curByte));
-            rxId++;
-
-            // 3. Detect stop bytes: Look back for 0x0D 0x0A
-            if (rxId >= 3 && instance->_data[rxId - 2] == STOP_BYTE2 
-                            && instance->_data[rxId - 1] == STOP_BYTE1) {
-                // Check if frame actually started with the correct byte
-                if (instance->_data.at(0) == START_BYTE) {
-                    // Process valid complete frame
-                    instance->processFrame();
+                    }
+                    
+                    break;
                 }
-                
-                // Clear index to wait for next start byte
-                rxId = 0; 
+
+                case UART_FIFO_OVF:
+                case UART_BUFFER_FULL:
+                    // Hardware or ring buffer overflowed: flush to recover cleanly
+                    ESP_LOGW(TAG, "UART Overflow! Flushing input.");
+                    uart_flush_input(UART1_NUM);
+                    xQueueReset(uart_event_queue);
+                    break;
+
+                case UART_BREAK:
+                case UART_DATA_BREAK:
+                case UART_FRAME_ERR:
+                case UART_PARITY_ERR:
+                    ESP_LOGW(TAG, "UART Frame/Parity Error");
+                    break;
+
+                case UART_PATTERN_DET:
+                case UART_WAKEUP:
+                case UART_EVENT_MAX:
+                default:
+                    break;
             }
         }
-        // Yield to other tasks
-        vTaskDelay(pdMS_TO_TICKS(100));
     }
-    free(rxBuffer);
+
+    // Should never reach here
     vTaskDelete(NULL);
 }
 
-// Static
-uint8_t DriverAhd::hex_to_val(char ch) {
-    if (ch >= '0' && ch <= '9') return ch - '0';
-    if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
-    if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
-    return 0;
-}
 
-void DriverAhd::processFrame()
+
+void DriverAhd::processFrame(size_t size)
 {
-    //printRawFrame();
-    buildFrame();
-    if(!checkSum()){
-        _lastErr = std::string("Checksum error in a frame           ");
+    //printRawFrame(_data, size);
+    
+    buildFrame(size);
+    uint8_t lrc = _bytes.back();
+    _bytes.pop_back(); // remove checksum
+
+    if(checkSum(_bytes) != lrc){
+        ESP_LOGW(TAG,"Checksum error in a frame");
         return;
     }
 
-    // printVectorInline(_bytes);
-    decodeFrame();
-    printDashboard();
-        
+    
+    printVectorInline(_bytes);
+    //sentBytes(_bytes); // to debug sendBytes
+    //decodeFrame();
+
 }
 
-void DriverAhd::printRawFrame()
-{
-    //AHD is kind of Modbus Ascii, frame shall be converted to ASCII first
-    ESP_LOGI(TAG, "Frame Converted to ASCII (%d bytes):", _data.size());
-    ESP_LOG_BUFFER_HEX(TAG, _data.data(), _data.size() );
-    ESP_LOG_BUFFER_CHAR(TAG, _data.data(), _data.size() );
-}
-
-void DriverAhd::buildFrame()
+void DriverAhd::buildFrame(size_t size)
 {
     // start and stops are not excluded and each pair of ascii
     // is interpreted as a byte
 
     _bytes.clear(); 
     // Loop through the vector in pairs, ignoring start and 2 stops
-    for (size_t i = 1; i < _data.size() - 3; i += 2) {
+    for (size_t i = 1; i < size - 3; i += 2) {
 
         uint8_t high_nibble = hex_to_val(_data[i]);
         uint8_t low_nibble = hex_to_val(_data[i + 1]);
@@ -169,32 +218,9 @@ void DriverAhd::buildFrame()
         _bytes.push_back(byte_val);
     }
 
-    _nFrame++;
 }
 
-bool DriverAhd::checkSum()
-{
-    uint32_t sum = 0;
-    // 1. Guard against empty or 1-byte vectors
-    if (_bytes.size() > 1) {
-        // 2. Accumulate from the start up to (end - 1) the last byte is the chksum
-        sum = std::accumulate(_bytes.begin(), _bytes.end() - 1, 0);
-    }
 
-    uint8_t check = (uint8_t)((-sum) & 0xFF); 
-    if (check == _bytes.back())
-        return true;
-    
-    return false;
-}
-
-void DriverAhd::printVectorInline(const std::vector<uint8_t>& bytes) {
-    for (uint8_t byte : bytes) {
-        // %02X prints 0-15 as '00'-'0F' in uppercase hex
-        printf("%02X ", byte); 
-    }
-    printf("\n"); // Newline at the end
-}
 
 void DriverAhd::decodeFrame()
 {
@@ -279,58 +305,51 @@ void DriverAhd::decodeFrame()
 
 }
 
-//Static
-void DriverAhd::displayTask(void *pvParameters)
-{
-    DriverAhd* instance = static_cast<DriverAhd*>(pvParameters);
-    
-    // Clear screen and home cursor once at startup
-    printf("\e[2J\e[H");
-
-    while (1) {
-        
-        instance->printDashboard();
-
-        // Yield to other tasks
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-    vTaskDelete(NULL);
+// Static
+uint8_t DriverAhd::hex_to_val(char ch) {
+    if (ch >= '0' && ch <= '9') return ch - '0';
+    if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+    if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+    return 0;
 }
 
-void DriverAhd::printDashboard()
+//Static
+char DriverAhd::val_to_hex(uint8_t val) {
+    // Mask to 4 bits (0-15) for safety
+    val &= 0x0F; 
+    if (val < 10) return '0' + val;
+    return 'A' + (val - 10); // Change 'A' to 'a' if you need lowercase hex
+}
+
+
+// Static
+uint8_t DriverAhd::checkSum(const std::vector<uint8_t>& bytes)
 {
-    // Move cursor to top-left corner without clearing
-    printf("\e[H");
-
-    // Draw the static interface layout
-    printf("-------------------------------------------------------------------------\n");
-    printf("|                          AHD20 Controller Table                       |\n");
-    printf("-------------------------------------------------------------------------\n");
-    
-    // Print dynamic data in fixed rows
-    printf("|    Slave ID  0x%02X     |    Num of frames " RED "%*ld" RESET "   |    Function 0x%02X   |\n", 
-                            _slaveId, 5, _nFrame, _function);
-    printf("| Address requested by slave  0x%04X   |   Number of registers 0x%04X   |\n",
-        _writeAdd, _nWrite);
-    printf("-------------------------------------------------------------------------\n");
-    printf("| Last Error: " RED "%*s" RESET "|\n", 58, _lastErr.c_str());
-    
-    _registerMap.lock();
-    for (uint8_t i = 0; i <  _registerMap.size(); ++i) {
-        if ((i >0 )&&(i % DISPLAY_N_PER_LINE == 0)) // Go to new line if i is multiple of num per line
-            printf("|\n");
-        auto data = _registerMap.at(i);
-        printf("| 0x%04X : ", data.address);
-        
-        if(data.updated)
-            printf(RED);
-        
-        printf("%*d ", 6, data.value);
-
-        if(data.updated)
-            printf(RESET);
-        
+    uint32_t sum = 0;
+    // 1. Guard against empty or 1-byte vectors
+    if (bytes.size() > 1) {
+        // 2. Accumulate from the start up to end
+        sum = std::accumulate(bytes.begin(), bytes.end(), 0);
     }
-    _registerMap.unlock();
 
+    return (uint8_t)((-sum) & 0xFF); 
+
+}
+
+// Static
+void DriverAhd::printVectorInline(const std::vector<uint8_t>& bytes) {
+    for (uint8_t byte : bytes) {
+        // %02X prints 0-15 as '00'-'0F' in uppercase hex
+        printf("%02X ", byte); 
+    }
+    printf("\n"); // Newline at the end
+}
+
+// Static
+void DriverAhd::printRawFrame(const std::vector<char>& data, size_t size)
+{
+    //AHD is kind of Modbus Ascii, frame shall be converted to ASCII first
+    ESP_LOGI(TAG, "Frame Converted to ASCII (%d bytes):", size);
+    ESP_LOG_BUFFER_HEX(TAG, data.data(), size );
+    //ESP_LOG_BUFFER_CHAR(TAG, data.data(), size );
 }

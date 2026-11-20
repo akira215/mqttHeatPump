@@ -20,6 +20,7 @@ Main::Main()
     esp_log_level_set("MqttClient", ESP_LOG_DEBUG);
     esp_log_level_set("DriverHomebus", ESP_LOG_INFO);
     esp_log_level_set("DriverDaikin", ESP_LOG_VERBOSE);
+     esp_log_level_set("DriverAhd", ESP_LOG_VERBOSE);
 }
 
 void Main::setup(void)
