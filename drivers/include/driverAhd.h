@@ -19,20 +19,8 @@
 
 #define UART1_NUM           UART_NUM_1
 
-#define UART1_TX_PIN        GPIO_NUM_18 // Unused in this unidirectional test
-#define UART1_RX_PIN        GPIO_NUM_17
-
 #define UART1_BAUD_RATE     9600
 #define UART1_BUFFER_SIZE   512
-
-#define QUEUE_SIZE          20
-
-#define START_BYTE          0x3A
-#define STOP_BYTE1          0x0A
-#define STOP_BYTE2          0x0D
-
-#define MODBUS_FUNC_READ    0x03
-#define MODBUS_FUNC_WRITE   0x10
 
 #define REG_SLAVE_POINTER   0x0001
 
@@ -41,7 +29,6 @@
 class DriverAhd final
 {
     
-
     //AHD is kind of Modbus Ascii, frame shall be converted to ASCII first
     std::vector<char>    _data;   // The raw data as read on UART
     std::vector<uint8_t> _bytes; // Data which is interpretation of the Ascii from Raw

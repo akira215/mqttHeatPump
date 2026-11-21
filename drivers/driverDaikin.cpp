@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <bit>
 #include <bitset>
+#include <cstring>
 
 #include <format>
 
@@ -113,6 +114,12 @@ uint8_t DriverDaikin::computeCRC(const std::vector<uint8_t>& data)
 //static 
 void DriverDaikin::printPacket(const std::vector<uint8_t>& data)
 {
+    for (uint8_t byte : data) {
+        // %02X prints 0-15 as '00'-'0F' in uppercase hex
+        printf("%02X ", byte); 
+    }
+    printf("\n"); // Newline at the end
+    /*
     // Each byte needs 3 chars ("xx "), plus prefix (~15) and suffix
     static constexpr size_t MAX_PRINT_BYTES = 48;
     char str[16 + MAX_PRINT_BYTES * 3 + 2];
@@ -123,6 +130,7 @@ void DriverDaikin::printPacket(const std::vector<uint8_t>& data)
     for (size_t i = 0; i < print_len; i++) {
         p += sprintf(p, "%02x ", data[i]);
     }
+    
     if (print_len > 0) {
         *(p - 1) = ']';
     } else {
@@ -130,6 +138,7 @@ void DriverDaikin::printPacket(const std::vector<uint8_t>& data)
     }
     *p = 0;
     ESP_LOGV(TAG, "%s", str);
+    */
 }
 
 // static, for debug

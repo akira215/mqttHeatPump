@@ -12,6 +12,7 @@
 #include <numeric> // Required for std::accumulate
 #include <cmath>
 #include <cstring>
+#include "ahd20protocol.h"
 #include "driverAhd.h"
 
 static const char *TAG = "DriverAhd";
@@ -31,9 +32,9 @@ DriverAhd::DriverAhd() : _data(UART1_BUFFER_SIZE)
     uart_config.source_clk = UART_SCLK_DEFAULT;  // Use APB clock for ESP32-C6
 
     ESP_ERROR_CHECK(uart_driver_install(UART1_NUM, UART1_BUFFER_SIZE, 0, 
-                QUEUE_SIZE ,&DriverAhd::uart_event_queue, 0));
+                CONFIG_UART_QUEUE_SIZE ,&DriverAhd::uart_event_queue, 0));
     ESP_ERROR_CHECK(uart_param_config(UART1_NUM, &uart_config));
-    ESP_ERROR_CHECK(uart_set_pin(UART1_NUM, UART1_TX_PIN, UART1_RX_PIN, 
+    ESP_ERROR_CHECK(uart_set_pin(UART1_NUM, CONFIG_UART_TX, CONFIG_UART_RX, 
                         UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
     
     // Optional: Tune idle timeout (in symbol lengths) to detect end-of-packet faster
@@ -75,7 +76,7 @@ void DriverAhd::sentBytes(const std::vector<uint8_t>& bytes)
     std::vector<char> toSend;
     toSend.reserve(1 + (bytes.size() * 2) + 4); // 1 start byte 2 checksum 2 stops
     
-    toSend.push_back(START_BYTE);
+    toSend.push_back(ModbusASCII::START_BYTE);
 
     for (uint8_t byte : bytes) {
 
@@ -92,8 +93,8 @@ void DriverAhd::sentBytes(const std::vector<uint8_t>& bytes)
     toSend.push_back(high_chk);
     toSend.push_back(low_chk);
 
-    toSend.push_back(STOP_BYTE2);
-    toSend.push_back(STOP_BYTE1);
+    toSend.push_back(ModbusASCII::STOP_BYTE2);
+    toSend.push_back(ModbusASCII::STOP_BYTE1);
 
     //printRawFrame(toSend, toSend.size());
 
@@ -114,7 +115,7 @@ void DriverAhd::uartRxTask(void *pvParameters)
 {
     DriverAhd* instance = static_cast<DriverAhd*>(pvParameters);
 
-    ESP_LOGI(TAG, "UART1 RX Task started. Listening on GPIO %d...", UART1_RX_PIN);
+    ESP_LOGI(TAG, "UART1 RX Task started. Listening on GPIO %d...", CONFIG_UART_RX);
 
     uart_event_t event;
 
@@ -154,8 +155,8 @@ void DriverAhd::uartRxTask(void *pvParameters)
                         size_t i = startScan;
                         while (i < instance->_rxIndex) {
                             // Case A: We haven't found START_BYTE yet
-                            if (instance->_data[0] != START_BYTE) {
-                                if (instance->_data[i] == START_BYTE) {
+                            if (instance->_data[0] != ModbusASCII::START_BYTE) {
+                                if (instance->_data[i] == ModbusASCII::START_BYTE) {
                                     // Shift everything from START_BYTE onward to index 0
                                     size_t validLen = instance->_rxIndex - i;
                                     std::memmove(instance->_data.data(), instance->_data.data() + i, validLen);
@@ -169,8 +170,8 @@ void DriverAhd::uartRxTask(void *pvParameters)
 
                             // Case B: We have START_BYTE at index 0; check if 'i' completes the 2 stop bytes
                             if (i >= 2 &&
-                                instance->_data[i - 1] == STOP_BYTE2 &&
-                                instance->_data[i] == STOP_BYTE1) {
+                                instance->_data[i - 1] == ModbusASCII::STOP_BYTE2 &&
+                                instance->_data[i] == ModbusASCII::STOP_BYTE1) {
                                 
                                 size_t frameLen = i + 1;
                                 ESP_LOGV(TAG, "Complete frame received (%zu bytes)", frameLen);
@@ -189,7 +190,7 @@ void DriverAhd::uartRxTask(void *pvParameters)
                         }
 
                         // If the entire buffer had no START_BYTE at all, discard it so _rxIndex stays 0
-                        if (instance->_rxIndex > 0 && instance->_data[0] != START_BYTE) {
+                        if (instance->_rxIndex > 0 && instance->_data[0] != ModbusASCII::START_BYTE) {
                             instance->_rxIndex = 0;
                         }
                     }
@@ -273,16 +274,16 @@ void DriverAhd::decodeFrame()
     _slaveId    = _bytes[0];  //First Byte is slave address
     _function   = _bytes[1];  //Modbus function
 
-    if (_function == MODBUS_FUNC_READ) {// function read register
+    if (_function == ModbusFunction::READ) {// function read register
         if (_bytes.size() == 7) { // Master query
-            _startingAdd = (static_cast<uint16_t>(_bytes[2]) << 8) | _bytes[3];
-            _nRegisters = (static_cast<uint16_t>(_bytes[4]) << 8) | _bytes[5];
+            _startingAdd = uint16from2Bytes(_bytes, 2);
+            _nRegisters = uint16from2Bytes(_bytes, 4);
         } else { // Slave Response
             if (_startingAdd == REG_SLAVE_POINTER) { // Master query slave what to do next
                 // Here slave answer 3 words : function - start - num of reg
-                if (_bytes[4] == MODBUS_FUNC_WRITE) {  // Capture when slave ask a write
-                    _writeAdd = (static_cast<uint16_t>(_bytes[5]) << 8) | _bytes[6];
-                    _nWrite = (static_cast<uint16_t>(_bytes[7]) << 8) | _bytes[8];
+                if (_bytes[4] == ModbusFunction::WRITE) {  // Capture when slave ask a write
+                    _writeAdd = uint16from2Bytes(_bytes, 5);
+                    _nWrite = uint16from2Bytes(_bytes, 7);
                 }
             } else { // Slave response data
                 _nBytes = _bytes[2];
@@ -290,7 +291,8 @@ void DriverAhd::decodeFrame()
                     ESP_LOGW(TAG, "Slave Answer read - size not equal to nb Bytes");
                 else {
                     for (uint8_t i = 0; i < _nBytes / 2; ++i) {
-                        uint16_t value = (static_cast<uint16_t>(_bytes[3+i*2]) << 8) | _bytes[4+i*2];
+                        //uint16_t value = (static_cast<uint16_t>(_bytes[3+i*2]) << 8) | _bytes[4+i*2];
+                        uint16_t value = uint16from2Bytes(_bytes, 3+i*2);
 
                         //_registerMap.lock();
                         //RegisterMap::register_t* reg = _registerMap.getItem(_startingAdd + i);
@@ -314,11 +316,11 @@ void DriverAhd::decodeFrame()
             _nRegisters = 0;
             _startingAdd = 0;
         }
-    } else if (_function ==  MODBUS_FUNC_WRITE) { // function write register
+    } else if (_function ==  ModbusFunction::WRITE) { // function write register
         if (_bytes.size() == 7) { // Slave Response
         
         } else { // Master query
-            uint16_t start = (static_cast<uint16_t>(_bytes[2]) << 8) | _bytes[3];
+            uint16_t start = uint16from2Bytes(_bytes, 2);
             //uint16_t n = (static_cast<uint16_t>(_bytes[4]) << 8) | _bytes[5];
             _nBytes = _bytes[6];
 
@@ -326,7 +328,8 @@ void DriverAhd::decodeFrame()
                 ESP_LOGW(TAG,"Master Write - size not equal to nb Bytes      ");
             else {
                  for (uint8_t i = 0; i < _nBytes / 2; ++i) {
-                    uint16_t value = (static_cast<uint16_t>(_bytes[7+i*2]) << 8) | _bytes[8+i*2];
+                    //uint16_t value = (static_cast<uint16_t>(_bytes[7+i*2]) << 8) | _bytes[8+i*2];
+                    uint16_t value = uint16from2Bytes(_bytes, 7+i*2);
                     
                     //_registerMap.lock();
                     //RegisterMap::register_t* reg = _registerMap.getItem(start + i);

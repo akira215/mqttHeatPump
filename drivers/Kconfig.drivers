@@ -24,6 +24,13 @@ menu "AHD20 driver configuration"
         default y
         help
             This will help to debug to adjust P1P2 protocol in case of inconsistency
+    
+    config UART_QUEUE_SIZE
+        int "UART queue size for AHD20"
+        range 0 34
+        default 20
+        help
+            the maximum number of uart_event_t notifications that UART ISR can store in uart_event_queue before the task reads them
 endmenu
 
 menu "GPIO Pins layout"
@@ -47,6 +54,27 @@ menu "GPIO Pins layout"
         default 2
         help
             GPIO pin number for Homebus RST (2 for mqttHeatPump PCB).
+    
+    config UART_TX
+        int "UART Tx pin for AHD20"
+        range 0 34
+        default 18
+        help
+            GPIO pin number for UART Tx that communicate with AHD20 (16 for mqttHeatPump PCB).
+    
+    config UART_RX
+        int "UART Rx pin for AHD20"
+        range 0 34
+        default 17
+        help
+            GPIO pin number for UART Rx that communicate with AHD20 (17 for mqttHeatPump PCB).
+    
+    config SENSOR_4_20_MA
+        int "Analog Pin for 4-20mA sensor"
+        range 0 34
+        default 0
+        help
+            GPIO ADC converter for 4-20mA sensor.
 
 endmenu
 
