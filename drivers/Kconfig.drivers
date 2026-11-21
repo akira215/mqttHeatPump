@@ -1,12 +1,29 @@
 menu "Daikin driver configuration"
+    config ENABLE_DAIKIN
+        bool "Enable DAIKIN driver"
+        default y
+        help
+            For debugging purpose, desactivate DAIKIN driver
 
     config PRINT_DAIKIN_PACKETS
         bool "Print the raw packets on stdout"
         default y
         help
             This will help to debug to adjust P1P2 protocol in case of inconsistency
+endmenu
 
+menu "AHD20 driver configuration"
+    config ENABLE_AHD20
+        bool "Enable AHD20 driver"
+        default y
+        help
+            For debugging purpose, desactivate AHD20 driver
 
+    config PRINT_AHD20_PACKETS
+        bool "Print the raw packets on stdout"
+        default y
+        help
+            This will help to debug to adjust P1P2 protocol in case of inconsistency
 endmenu
 
 menu "GPIO Pins layout"

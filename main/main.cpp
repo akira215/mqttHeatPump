@@ -20,7 +20,7 @@ Main::Main()
     esp_log_level_set("MqttClient", ESP_LOG_DEBUG);
     esp_log_level_set("DriverHomebus", ESP_LOG_INFO);
     esp_log_level_set("DriverDaikin", ESP_LOG_VERBOSE);
-     esp_log_level_set("DriverAhd", ESP_LOG_VERBOSE);
+    esp_log_level_set("DriverAhd", ESP_LOG_INFO);
 }
 
 void Main::setup(void)
@@ -31,17 +31,21 @@ void Main::setup(void)
     _thread->registerHandler(&Main::threadEvent, this);
     _thread->init();
 
-    // HBS communication
-    _hbs = new DriverHomebus();
-    _daikin = new DriverDaikin(&_deviceDatas, _hbs);
+    #ifdef CONFIG_ENABLE_DAIKIN
+        // HBS communication
+        _hbs = new DriverHomebus();
+        _daikin = new DriverDaikin(&_deviceDatas, _hbs);
 
-    _hbs->registerCallback(&DriverDaikin::onDataReceived, _daikin);
+        _hbs->registerCallback(&DriverDaikin::onDataReceived, _daikin);
 
-    _hbs->start();
+        _hbs->start();
+    #endif
 
-    // Setup AHD communication 
-    _ahd = new DriverAhd();
-    _ahd->start();
+    #ifdef CONFIG_ENABLE_AHD20
+        // Setup AHD communication 
+        _ahd = new DriverAhd();
+        _ahd->start();
+    #endif
 
 }
 
@@ -97,13 +101,17 @@ void Main::onMqttData(int msg_id, const std::string& topic, const std::string& d
     /******************************************************************** */
     
     if (topic == (CONFIG_TOPIC_BASE "setpoint/set") ) {
-        _daikin->setSetpointTemperature(std::stof(data)); 
+        if(_daikin)
+            _daikin->setSetpointTemperature(std::stof(data)); 
     } else if (topic == (CONFIG_TOPIC_BASE "mode/set") ) {
-        _daikin->setMode(data);
+        if(_daikin)
+            _daikin->setMode(data);
     } else if (topic == (CONFIG_TOPIC_BASE "dhw_setpoint/set") ) {
-        _daikin->setDhwSetpointTemperature(std::stof(data));
+        if(_daikin)
+            _daikin->setDhwSetpointTemperature(std::stof(data));
     } else if (topic == (CONFIG_TOPIC_BASE "dhw_mode/set") ) {
-         _daikin->setDhwMode(data);
+        if(_daikin)
+            _daikin->setDhwMode(data);
     } else {
         ESP_LOGW(TAG, "MQTT Data received not catched. Message ID: %d, Topic: %s, Data: %s", 
                                                         msg_id, topic.c_str(), data.c_str());

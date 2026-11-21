@@ -166,8 +166,9 @@ std::string DriverDaikin::byteToBinary(const std::vector<uint8_t>& data, size_t 
 // this method only route the data to the correct handler
 void DriverDaikin::onDataReceived(const std::vector<uint8_t>& buffer)
 {
-    if (CONFIG_PRINT_DAIKIN_PACKETS)
+    #ifdef CONFIG_PRINT_DAIKIN_PACKETS
         printPacket(buffer);
+    #endif
 
     // Validate CRC
     uint8_t received_crc = buffer.back();

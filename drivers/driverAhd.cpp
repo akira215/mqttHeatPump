@@ -11,6 +11,7 @@
 #include <esp_log.h>
 #include <numeric> // Required for std::accumulate
 #include <cmath>
+#include <cstring>
 #include "driverAhd.h"
 
 static const char *TAG = "DriverAhd";
@@ -41,7 +42,7 @@ DriverAhd::DriverAhd() : _data(UART1_BUFFER_SIZE)
     ESP_LOGI(TAG, "UART1 initialized at %d baud", UART1_BAUD_RATE);
 
     //Reserve to avoid heap allocation
-    _registerMap.reserve(REGISTER_MAP_SIZE);
+    //_registerMap.reserve(REGISTER_MAP_SIZE);
 
 }
 
@@ -73,9 +74,7 @@ void DriverAhd::sentBytes(const std::vector<uint8_t>& bytes)
     uint8_t chk = checkSum(bytes);
     std::vector<char> toSend;
     toSend.reserve(1 + (bytes.size() * 2) + 4); // 1 start byte 2 checksum 2 stops
-    ESP_LOGI(TAG, "Reserve %d - chksum %d", 1 + (bytes.size() * 2) + 4, chk);
-    //ESP_LOG_BUFFER_HEX(TAG, chk, 1 );
-
+    
     toSend.push_back(START_BYTE);
 
     for (uint8_t byte : bytes) {
@@ -118,39 +117,84 @@ void DriverAhd::uartRxTask(void *pvParameters)
     ESP_LOGI(TAG, "UART1 RX Task started. Listening on GPIO %d...", UART1_RX_PIN);
 
     uart_event_t event;
+
     while (1) {
         
         // Sleep completely (0% CPU) until the UART hardware sends an event
-        if (xQueueReceive(uart_event_queue, (void *)&event, portMAX_DELAY)) {
+        if (xQueueReceive(uart_event_queue, (void *)&event,  pdMS_TO_TICKS(50))) {
             
             switch (event.type) {
                 case UART_DATA:
                 {
-                    // 'event.size' tells you the exact number of bytes waiting
-                    // Guard against event.size exceeding our pre-allocated buffer capacity
-                    size_t bytesToRead = std::min(event.size, instance->_data.size());
-                    ESP_LOGI(TAG, "bytesToRead %d bytes",  bytesToRead);
+                    size_t remaining = event.size;  // Hardware RX FIFO buffer is 128 bytes (triggering at 120 bytes)
+                                                    // Our frame are greater, so we need to accumulate
 
-                    int len = uart_read_bytes(UART1_NUM, instance->_data.data(), bytesToRead, portMAX_DELAY);
-                   
-                    if (len > 0) {
-                        // warning _data is never resized
-                        //ESP_LOGI(TAG, "Received %d bytes, 1st is 0x%02X", len, static_cast<unsigned int>(
-                        //                                    static_cast<unsigned char>(instance->_data[0])));
-
-                        if (instance->_data[0] == START_BYTE 
-                                && instance->_data[len - 2] == STOP_BYTE2 
-                                && instance->_data[len - 1] == STOP_BYTE1) {
-                            ESP_LOGI(TAG, "Start and stops bytes Ok");
-                            instance->processFrame(len);
-
+                    while (remaining > 0) {
+                        // 1. Check how much room is left in _data
+                        size_t availableSpace = instance->_data.size() - instance->_rxIndex;
+                        if (availableSpace == 0) {
+                            ESP_LOGW(TAG, "Frame overflow (%zu bytes). Resetting.", instance->_rxIndex);
+                            instance->_rxIndex = 0;
+                            availableSpace = instance->_data.size();
                         }
 
+                        // 2. Read directly into _data at the current offset
+                        size_t toRead = std::min(remaining, availableSpace);
+                        int len = uart_read_bytes(UART1_NUM, instance->_data.data() + instance->_rxIndex, toRead, portMAX_DELAY);
+
+                        if (len <= 0) {
+                            break;
+                        }
+
+                        remaining -= len;
+                        size_t startScan = instance->_rxIndex;
+                        instance->_rxIndex += len;
+
+                        // 3. Scan the newly added bytes for START_BYTE and STOP_BYTEs
+                        size_t i = startScan;
+                        while (i < instance->_rxIndex) {
+                            // Case A: We haven't found START_BYTE yet
+                            if (instance->_data[0] != START_BYTE) {
+                                if (instance->_data[i] == START_BYTE) {
+                                    // Shift everything from START_BYTE onward to index 0
+                                    size_t validLen = instance->_rxIndex - i;
+                                    std::memmove(instance->_data.data(), instance->_data.data() + i, validLen);
+                                    instance->_rxIndex = validLen;
+                                    i = 1; // Continue scanning right after START_BYTE
+                                } else {
+                                    i++;
+                                }
+                                continue;
+                            }
+
+                            // Case B: We have START_BYTE at index 0; check if 'i' completes the 2 stop bytes
+                            if (i >= 2 &&
+                                instance->_data[i - 1] == STOP_BYTE2 &&
+                                instance->_data[i] == STOP_BYTE1) {
+                                
+                                size_t frameLen = i + 1;
+                                ESP_LOGV(TAG, "Complete frame received (%zu bytes)", frameLen);
+                                instance->processFrame(frameLen);
+
+                                // If extra bytes from the NEXT frame arrived in the same read, shift them to index 0
+                                size_t leftover = instance->_rxIndex - frameLen;
+                                if (leftover > 0) {
+                                    std::memmove(instance->_data.data(), instance->_data.data() + frameLen, leftover);
+                                }
+                                instance->_rxIndex = leftover;
+                                i = 0; // Restart scan on the shifted leftover bytes
+                            } else {
+                                i++;
+                            }
+                        }
+
+                        // If the entire buffer had no START_BYTE at all, discard it so _rxIndex stays 0
+                        if (instance->_rxIndex > 0 && instance->_data[0] != START_BYTE) {
+                            instance->_rxIndex = 0;
+                        }
                     }
-                    
                     break;
                 }
-
                 case UART_FIFO_OVF:
                 case UART_BUFFER_FULL:
                     // Hardware or ring buffer overflowed: flush to recover cleanly
@@ -172,14 +216,17 @@ void DriverAhd::uartRxTask(void *pvParameters)
                 default:
                     break;
             }
+        } else { // 50ms of silence on the UART line: discard any incomplete frame
+            if (instance->_rxIndex > 0) {
+                ESP_LOGW(TAG, "UART RX timeout: discarding incomplete frame (%zu bytes)", instance->_rxIndex);
+                instance->_rxIndex = 0;
+            }
         }
-    }
+    } // While(1)
 
     // Should never reach here
     vTaskDelete(NULL);
 }
-
-
 
 void DriverAhd::processFrame(size_t size)
 {
@@ -194,8 +241,9 @@ void DriverAhd::processFrame(size_t size)
         return;
     }
 
-    
-    printVectorInline(_bytes);
+    #ifdef CONFIG_PRINT_AHD20_PACKETS
+        printVectorInline(_bytes);
+    #endif
     //sentBytes(_bytes); // to debug sendBytes
     //decodeFrame();
 
@@ -220,8 +268,6 @@ void DriverAhd::buildFrame(size_t size)
 
 }
 
-
-
 void DriverAhd::decodeFrame()
 {
     _slaveId    = _bytes[0];  //First Byte is slave address
@@ -241,26 +287,26 @@ void DriverAhd::decodeFrame()
             } else { // Slave response data
                 _nBytes = _bytes[2];
                 if (_nBytes != (_bytes.size() - 4))
-                    _lastErr = std::string("Slave Answer read - size not equal to nb Bytes");
+                    ESP_LOGW(TAG, "Slave Answer read - size not equal to nb Bytes");
                 else {
                     for (uint8_t i = 0; i < _nBytes / 2; ++i) {
                         uint16_t value = (static_cast<uint16_t>(_bytes[3+i*2]) << 8) | _bytes[4+i*2];
 
-                        _registerMap.lock();
-                        RegisterMap::register_t* reg = _registerMap.getItem(_startingAdd + i);
-                        if (reg == nullptr) {
-                            _registerMap[_startingAdd + i].value = value;
-                            _registerMap[_startingAdd + i].updated = true;
+                        //_registerMap.lock();
+                        //RegisterMap::register_t* reg = _registerMap.getItem(_startingAdd + i);
+                        //if (reg == nullptr) {
+                        //    _registerMap[_startingAdd + i].value = value;
+                        //    _registerMap[_startingAdd + i].updated = true;
 
-                        } else {
-                            if (reg->value == value)
-                                reg->updated = false;
-                            else {
-                                reg->updated = true;
-                                reg->value = value;
-                            }
-                        }
-                        _registerMap.unlock();
+                        //} else {
+                        //    if (reg->value == value)
+                        //        reg->updated = false;
+                        //    else {
+                        //        reg->updated = true;
+                        //        reg->value = value;
+                        //    }
+                        //}
+                        //_registerMap.unlock();
 
                     }
                 }
@@ -277,26 +323,26 @@ void DriverAhd::decodeFrame()
             _nBytes = _bytes[6];
 
             if (_nBytes != (_bytes.size() - 8))
-                _lastErr = std::string("Master Write - size not equal to nb Bytes      ");
+                ESP_LOGW(TAG,"Master Write - size not equal to nb Bytes      ");
             else {
                  for (uint8_t i = 0; i < _nBytes / 2; ++i) {
                     uint16_t value = (static_cast<uint16_t>(_bytes[7+i*2]) << 8) | _bytes[8+i*2];
                     
-                    _registerMap.lock();
-                    RegisterMap::register_t* reg = _registerMap.getItem(start + i);
-                    if (reg == nullptr) {
-                        _registerMap[start + i].value = value;
-                        _registerMap[start + i].updated = true;
+                    //_registerMap.lock();
+                    //RegisterMap::register_t* reg = _registerMap.getItem(start + i);
+                    //if (reg == nullptr) {
+                    //   _registerMap[start + i].value = value;
+                    //    _registerMap[start + i].updated = true;
 
-                    } else {
-                        if (reg->value == value)
-                            reg->updated = false;
-                        else {
-                            reg->updated = true;
-                            reg->value = value;
-                        }
-                    }
-                    _registerMap.unlock();
+                    //} else {
+                    //    if (reg->value == value)
+                    //        reg->updated = false;
+                    //    else {
+                    //        reg->updated = true;
+                    //        reg->value = value;
+                    //    }
+                    //}
+                    //_registerMap.unlock();
                 }
             }
 
