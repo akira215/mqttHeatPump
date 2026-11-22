@@ -19,15 +19,14 @@
 
 #define UART1_NUM           UART_NUM_1
 
-#define UART1_BAUD_RATE     9600
-#define UART1_BUFFER_SIZE   512
-
-#define REG_SLAVE_POINTER   0x0001
-
 
 // Driver class used for testing only
 class DriverAhd final
 {
+    static constexpr int    UART1_BAUD_RATE   = 9600;
+    static constexpr size_t UART1_BUFFER_SIZE = 512;
+
+    static constexpr uint16_t REG_SLAVE_POINTER = 0x0001;
     
     //AHD is kind of Modbus Ascii, frame shall be converted to ASCII first
     std::vector<char>    _data;   // The raw data as read on UART

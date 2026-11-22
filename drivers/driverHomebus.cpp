@@ -427,8 +427,8 @@ std::vector<uint8_t> DriverHomebus::decodeRmtData(rmt_symbol_word_t *symbols, si
         //result.push_back(static_cast<uint8_t>(decoded_byte & 0xFF));
         result.push_back(static_cast<uint8_t>(decoded_byte));
 
-        if (result.size()+1 >= DECODE_BUFFER_SIZE) {
-            ESP_LOGE(TAG, "Over max length: %lu > %lu", result.size()+1, DECODE_BUFFER_SIZE);
+        if (result.size() > DECODE_BUFFER_SIZE) {
+            ESP_LOGE(TAG, "Over max length: %lu > %lu", result.size(), DECODE_BUFFER_SIZE);
             result.clear();
             return result;
         }

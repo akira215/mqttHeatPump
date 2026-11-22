@@ -25,26 +25,6 @@
 #include "driver/rmt_tx.h"
 #include "driver/rmt_rx.h"
 
-#define HBS_BIT_US          104   // Total bit time at ~9600 bps
-#define HBS_PULSE_US         52   // Active half-bit pulse time
-
-// RMT resolution for homebus, in Hz
-static constexpr uint32_t HOMEBUS_RMT_RESOLUTION_HZ = 4000000UL;
-
-// Homebus timing parameters (in RMT ticks at HOMEBUS_RMT_RESOLUTION_HZ)
-static constexpr uint32_t HOMEBUS_BIT_RATE = 9600;
-static constexpr uint32_t HOMEBUS_BIT_DURATION = HOMEBUS_RMT_RESOLUTION_HZ / HOMEBUS_BIT_RATE;
-static constexpr uint32_t HOMEBUS_HALF_BIT_DURATION = HOMEBUS_BIT_DURATION / 2;
-
-// RX buffer size in symbols (enough for 32 bytes * 11 symbols/byte)
-static constexpr size_t RX_BUFFER_SYMBOLS = 32 * 11;
-
-static constexpr size_t DECODE_BUFFER_SIZE = 32;
-
-#define DISPLAY_N_PER_LINE  4 // number of register to be displayed on one line
-
-#define REGISTER_MAP_SIZE 100 // 100 uint16 register address could be stored to increase in case of more
-
 
 /*
 
@@ -63,7 +43,7 @@ Read/Write 0 bit:
             |                BIT_DURATION              | NEXT
             |  HALF_BIT_DURATION  | HALF_BIT_DURATION  | BIT
 
-------────┐                     ┌─────────────────────------
+--------────┐                     ┌─────────────────────------
             │                     │
             │                     │
             │                     │
@@ -71,10 +51,21 @@ Read/Write 0 bit:
 
 */
 
-
-// Driver class used for testing only
 class DriverHomebus final
 {
+    // RMT resolution for homebus, in Hz
+    static constexpr uint32_t HOMEBUS_RMT_RESOLUTION_HZ = 4000000UL;
+
+    // Homebus timing parameters (in RMT ticks at HOMEBUS_RMT_RESOLUTION_HZ)
+    static constexpr uint32_t HOMEBUS_BIT_RATE = 9600;
+    static constexpr uint32_t HOMEBUS_BIT_DURATION = HOMEBUS_RMT_RESOLUTION_HZ / HOMEBUS_BIT_RATE;
+    static constexpr uint32_t HOMEBUS_HALF_BIT_DURATION = HOMEBUS_BIT_DURATION / 2;
+
+    // RX buffer size in symbols (enough for 32 bytes * 11 symbols/byte)
+    static constexpr size_t DECODE_BUFFER_SIZE = 32;
+    static constexpr size_t RX_BUFFER_SYMBOLS =  DECODE_BUFFER_SIZE * 11;
+
+
     static constexpr rmt_symbol_word_t hbs_bit0 = {
        .duration0   = HOMEBUS_HALF_BIT_DURATION,
        .level0      = 0,
