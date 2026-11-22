@@ -1,3 +1,18 @@
+menu "General"
+    config NTP_SERVER_NAME
+        string "Local NTP server name"
+        default "ntp-server"
+        help
+            used to get the time sync
+    
+    config TIMEZONE
+        string "Timezone for this device"
+        default "CET-1CEST,M3.5.0,M10.5.0/3"
+        help
+            Enter the timezone
+    
+endmenu
+
 menu "MQTT Topics"
     config TOPIC_BASE
         string "Base mqtt topic for all the datas"

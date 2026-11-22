@@ -10,7 +10,6 @@
   and a pointer to the homebus object to sendbyte
 */
 
-
 #pragma once
 #include "deviceDatas.h"
 #include "driverHomebus.h"

@@ -36,6 +36,18 @@ CONFIG_TARGET_THREAD_TLV="0e080000......."
 
 Configuration is available in `menuconfig` in the `Project setting` section:
 
+In `sdkconfig.default`, change the dns server with correct gatewayh (useful for ntp server) 
+
+```
+CONFIG_OPENTHREAD_DNS_SERVER_ADDR="192.168.50.1"
+```
+
+`CONFIG_NTP_SERVER_NAME` should be correctly set `ntp-server` for example
+
+`CONFIG_TIMEZONE` should be correctly set `CET-1CEST,M3.5.0,M10.5.0/3` for Paris
+
+
+
 ## MQTT message
 ```json
 {

@@ -5,6 +5,10 @@
 
 #include "config_json.h"
 
+#include <time.h>
+#include <sys/time.h>
+#include "esp_netif_sntp.h"
+
 #include <esp_log.h>
 
 static const char *TAG = "MainApp";
@@ -21,6 +25,42 @@ Main::Main()
     esp_log_level_set("DriverHomebus", ESP_LOG_INFO);
     esp_log_level_set("DriverDaikin", ESP_LOG_VERBOSE);
     esp_log_level_set("DriverAhd", ESP_LOG_INFO);
+}
+
+// Static
+void Main::startLocalNtpSync()
+{
+
+    static bool ntp_started = false;
+    if (ntp_started) {
+        return;
+    }
+    ntp_started = true;
+
+    // 1. Set Paris timezone with automatic summer/winter change
+    setenv("TZ", CONFIG_TIMEZONE, 1);
+    tzset();
+
+    // 2. Configure SNTP using your local hostname (resolved via Border Router DNS64)
+    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(CONFIG_NTP_SERVER_NAME);
+    esp_netif_sntp_init(&config);
+
+    ESP_LOGI(TAG, "SNTP initialized with local hostname");
+
+     // Wait for time synchronization
+    time_t now = 0;
+    struct tm timeinfo = { };
+    int retry = 0;
+    const int retry_count = 15;
+
+    while (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(2000)) == ESP_ERR_TIMEOUT && ++retry < retry_count) {
+        ESP_LOGI(TAG, "Waiting for local NTP sync... (%d/%d)", retry, retry_count);
+    }
+
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    ESP_LOGI(TAG, "Synced time (UTC): %s", asctime(&timeinfo));
+
 }
 
 void Main::setup(void)
@@ -49,9 +89,9 @@ void Main::setup(void)
 
 }
 
-void  Main::threadEvent(esp_openthread_event_t event_id)
+void  Main::threadEvent(esp_openthread_event_t eventId)
 {
-   if (event_id == OPENTHREAD_EVENT_GOT_IP6) {
+   if (eventId == OPENTHREAD_EVENT_GOT_IP6) {
         bool first = true;
         if(_mqtt)
             first = false;
@@ -68,6 +108,10 @@ void  Main::threadEvent(esp_openthread_event_t event_id)
             _mqtt->registerDataHandler(&Main::onMqttData, this);
         }
 
+    } else if (eventId == OPENTHREAD_EVENT_SET_DNS_SERVER) {
+        ESP_LOGI(TAG, "Thread event set DNS server");
+        // synchronise time
+        startLocalNtpSync();
     }
    
 }

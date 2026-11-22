@@ -47,6 +47,7 @@ private:
     }; // to send message to mqtt broker
     
     std::array<MqttMessage, DeviceDatas::kCount> _messages {};
+    static void startLocalNtpSync();
 
 
 }; // Main Class 

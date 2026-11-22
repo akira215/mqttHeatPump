@@ -16,6 +16,9 @@
 #include <bitset>
 #include <cstring>
 
+#include <time.h>
+#include <sys/time.h>
+
 #include <format>
 
 #include "driverDaikin.h"
@@ -114,6 +117,22 @@ uint8_t DriverDaikin::computeCRC(const std::vector<uint8_t>& data)
 //static 
 void DriverDaikin::printPacket(const std::vector<uint8_t>& data)
 {
+    time_t       now;
+    struct tm    timeinfo;
+    // Get the current system time (seconds since epoch)
+    time(&now);
+    // Convert time_t to a local tm structure
+    localtime_r(&now, &timeinfo);
+
+    printf("%04d-%02d-%02d %02d:%02d:%02d | ",
+        timeinfo.tm_year + 1900,
+        timeinfo.tm_mon + 1,
+        timeinfo.tm_mday,
+        timeinfo.tm_hour,
+        timeinfo.tm_min,
+        timeinfo.tm_sec);
+
+
     for (uint8_t byte : data) {
         // %02X prints 0-15 as '00'-'0F' in uppercase hex
         printf("%02X ", byte); 
